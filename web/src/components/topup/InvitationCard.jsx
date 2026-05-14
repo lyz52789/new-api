@@ -176,7 +176,7 @@ const InvitationCard = ({
           {/* 邀请链接部分 */}
           <Input
             value={affLink}
-            readonly
+            readOnly
             className='!rounded-lg'
             prefix={t('邀请链接')}
             suffix={
