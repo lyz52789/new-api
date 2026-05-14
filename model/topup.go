@@ -6,6 +6,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	appmetrics "github.com/QuantumNous/new-api/metrics"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -142,6 +143,11 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		common.SysError("topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
+
+	if _, commissionErr := CreateAffiliateCommissionForTopUp(topUp); commissionErr != nil {
+		common.SysError("create affiliate commission failed: " + commissionErr.Error())
+	}
+	appmetrics.RecordTopupSuccess(topUp.PaymentMethod, PaymentMethodStripe, moneyYuanToCents(topUp.Money))
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 
@@ -375,6 +381,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	}
 
 	// 事务外记录日志，避免阻塞
+	appmetrics.RecordTopupSuccess(paymentMethod, "admin", moneyYuanToCents(payMoney))
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
 	return nil
 }
@@ -448,6 +455,11 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 		return errors.New("充值失败，请稍后重试")
 	}
 
+	if _, commissionErr := CreateAffiliateCommissionForTopUp(topUp); commissionErr != nil {
+		common.SysError("create creem affiliate commission failed: " + commissionErr.Error())
+	}
+	appmetrics.RecordTopupSuccess(topUp.PaymentMethod, PaymentMethodCreem, moneyYuanToCents(topUp.Money))
+
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
 
 	return nil
@@ -510,6 +522,10 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 	}
 
 	if quotaToAdd > 0 {
+		if _, commissionErr := CreateAffiliateCommissionForTopUp(topUp); commissionErr != nil {
+			common.SysError("create waffo affiliate commission failed: " + commissionErr.Error())
+		}
+		appmetrics.RecordTopupSuccess(topUp.PaymentMethod, PaymentMethodWaffo, moneyYuanToCents(topUp.Money))
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
 	}
 
@@ -571,6 +587,10 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	}
 
 	if quotaToAdd > 0 {
+		if _, commissionErr := CreateAffiliateCommissionForTopUp(topUp); commissionErr != nil {
+			common.SysError("create waffo pancake affiliate commission failed: " + commissionErr.Error())
+		}
+		appmetrics.RecordTopupSuccess(topUp.PaymentMethod, PaymentMethodWaffoPancake, moneyYuanToCents(topUp.Money))
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
 	}
 
