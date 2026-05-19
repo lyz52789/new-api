@@ -47,7 +47,6 @@ export default function SettingsHeaderNavModules(props) {
       requireAuth: false, // 默认不需要登录鉴权
     },
     docs: true,
-    about: true,
   });
 
   // 处理顶栏模块配置变更
@@ -87,7 +86,6 @@ export default function SettingsHeaderNavModules(props) {
         requireAuth: false,
       },
       docs: true,
-      about: true,
     };
     setHeaderNavModules(defaultModules);
     showSuccess(t('已重置为默认配置'));
@@ -153,7 +151,6 @@ export default function SettingsHeaderNavModules(props) {
             requireAuth: false,
           },
           docs: true,
-          about: true,
         };
         setHeaderNavModules(defaultModules);
       }
@@ -182,11 +179,6 @@ export default function SettingsHeaderNavModules(props) {
       key: 'docs',
       title: t('文档'),
       description: t('系统文档和帮助信息'),
-    },
-    {
-      key: 'about',
-      title: t('关于'),
-      description: t('关于系统的详细信息'),
     },
   ];
 
