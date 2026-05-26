@@ -442,6 +442,9 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 		tx = tx.Where("username = ?", username)
 		rpmTpmQuery = rpmTpmQuery.Where("username = ?", username)
 	}
+		if rpmTpmQuery, err = applyExplicitLogTextFilter(rpmTpmQuery, "username", username); err != nil {
+			return stat, err
+		}
 	if tokenName != "" {
 		tx = tx.Where("token_name = ?", tokenName)
 		rpmTpmQuery = rpmTpmQuery.Where("token_name = ?", tokenName)
