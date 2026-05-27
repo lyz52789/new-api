@@ -24,6 +24,7 @@ import {
   API_ENDPOINTS,
   MESSAGE_STATUS,
   DEBUG_TABS,
+  getPlaygroundApiUrl,
 } from '../../constants/playground.constants';
 import {
   getUserIdFromLocalStorage,
@@ -185,14 +186,17 @@ export const useApiRequest = (
       setActiveDebugTab(DEBUG_TABS.REQUEST);
 
       try {
-        const response = await fetch(API_ENDPOINTS.CHAT_COMPLETIONS, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'New-Api-User': getUserIdFromLocalStorage(),
+        const response = await fetch(
+          getPlaygroundApiUrl(API_ENDPOINTS.CHAT_COMPLETIONS),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'New-Api-User': getUserIdFromLocalStorage(),
+            },
+            body: JSON.stringify(payload),
           },
-          body: JSON.stringify(payload),
-        });
+        );
 
         if (!response.ok) {
           let errorBody = '';
@@ -313,14 +317,17 @@ export const useApiRequest = (
       }));
       setActiveDebugTab(DEBUG_TABS.REQUEST);
 
-      const source = new SSE(API_ENDPOINTS.CHAT_COMPLETIONS, {
-        headers: {
-          'Content-Type': 'application/json',
-          'New-Api-User': getUserIdFromLocalStorage(),
+      const source = new SSE(
+        getPlaygroundApiUrl(API_ENDPOINTS.CHAT_COMPLETIONS),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'New-Api-User': getUserIdFromLocalStorage(),
+          },
+          method: 'POST',
+          payload: JSON.stringify(payload),
         },
-        method: 'POST',
-        payload: JSON.stringify(payload),
-      });
+      );
 
       sseSourceRef.current = source;
 
@@ -421,7 +428,11 @@ export const useApiRequest = (
           setMessage((prevMessage) => {
             const newMessages = [...prevMessage];
             const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.status !== MESSAGE_STATUS.COMPLETE && lastMessage.status !== MESSAGE_STATUS.ERROR) {
+            if (
+              lastMessage &&
+              lastMessage.status !== MESSAGE_STATUS.COMPLETE &&
+              lastMessage.status !== MESSAGE_STATUS.ERROR
+            ) {
               newMessages[newMessages.length - 1] = {
                 ...lastMessage,
                 content: (lastMessage.content || '') + errorMessage,
