@@ -26,6 +26,26 @@ func (a *Adaptor) ConvertGeminiRequest(*gin.Context, *relaycommon.RelayInfo, *dt
 }
 
 func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayInfo, req *dto.ClaudeRequest) (any, error) {
+	// DeepSeek 不支持 thinking content block，过滤掉
+	if req != nil && len(req.Messages) > 0 {
+		for i, msg := range req.Messages {
+			if msg.Content == nil {
+				continue
+			}
+			contents, err := msg.ParseContent()
+			if err != nil {
+				continue
+			}
+			filtered := make([]dto.ClaudeMediaMessage, 0, len(contents))
+			for _, block := range contents {
+				if block.Type != "thinking" && block.Type != "signature" {
+					filtered = append(filtered, block)
+				}
+			}
+			req.Messages[i].SetContent(filtered)
+		}
+		req.Thinking = nil
+	}
 	adaptor := claude.Adaptor{}
 	return adaptor.ConvertClaudeRequest(c, info, req)
 }
