@@ -33,6 +33,29 @@ import {
   processIncompleteThinkTags,
 } from '../../helpers';
 
+const getAccessTokenFromLocalStorage = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return '';
+    const user = JSON.parse(raw);
+    return user?.access_token || '';
+  } catch (_) {
+    return '';
+  }
+};
+
+const buildPlaygroundHeaders = () => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'New-Api-User': getUserIdFromLocalStorage(),
+  };
+  const accessToken = getAccessTokenFromLocalStorage();
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return headers;
+};
+
 export const useApiRequest = (
   setMessage,
   setDebugData,
@@ -190,10 +213,7 @@ export const useApiRequest = (
           getPlaygroundApiUrl(API_ENDPOINTS.CHAT_COMPLETIONS),
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'New-Api-User': getUserIdFromLocalStorage(),
-            },
+            headers: buildPlaygroundHeaders(),
             body: JSON.stringify(payload),
           },
         );
@@ -320,10 +340,7 @@ export const useApiRequest = (
       const source = new SSE(
         getPlaygroundApiUrl(API_ENDPOINTS.CHAT_COMPLETIONS),
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'New-Api-User': getUserIdFromLocalStorage(),
-          },
+          headers: buildPlaygroundHeaders(),
           method: 'POST',
           payload: JSON.stringify(payload),
         },
