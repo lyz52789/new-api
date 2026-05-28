@@ -80,6 +80,22 @@ export const API_ENDPOINTS = {
   USER_GROUPS: '/api/user/self/groups',
 };
 
+export const getPlaygroundApiUrl = (path) => {
+  const configuredServer = import.meta.env.VITE_REACT_APP_SERVER_URL || '';
+  if (configuredServer) {
+    return new URL(path, configuredServer).toString();
+  }
+
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname === 'www.token123.co'
+  ) {
+    return new URL(path, 'https://api.token123.co').toString();
+  }
+
+  return path;
+};
+
 // ========== 配置默认值 ==========
 export const DEFAULT_CONFIG = {
   inputs: {
