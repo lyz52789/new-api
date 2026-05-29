@@ -230,18 +230,6 @@ func CacheUpdateChannelStatus(id int, status int) {
 	defer channelSyncLock.Unlock()
 	if channel, ok := channelsIDM[id]; ok {
 		channel.Status = status
-		if status == common.ChannelStatusEnabled {
-			groups := strings.Split(channel.Group, ",")
-			for _, group := range groups {
-				models := strings.Split(channel.Models, ",")
-				for _, model := range models {
-					if _, ok := group2model2channels[group]; !ok {
-						group2model2channels[group] = make(map[string][]int)
-					}
-					group2model2channels[group][model] = append(group2model2channels[group][model], id)
-				}
-			}
-		}
 	}
 	if status != common.ChannelStatusEnabled {
 		// delete the channel from group2model2channels
