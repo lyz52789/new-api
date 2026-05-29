@@ -616,8 +616,14 @@ func handlerMultiKeyUpdate(channel *Channel, usingKey string, status int, reason
 			info["status_reason"] = "All keys are disabled"
 			info["status_time"] = common.GetTimestamp()
 			channel.SetOtherInfo(info)
-		} else if status == common.ChannelStatusEnabled {
-			channel.Status = common.ChannelStatusEnabled
+		} else if status == common.ChannelStatusEnabled && channel.Status == common.ChannelStatusAutoDisabled {
+			info := channel.GetOtherInfo()
+			if reason, ok := info["status_reason"].(string); ok && reason == "All keys are disabled" {
+				channel.Status = common.ChannelStatusEnabled
+				delete(info, "status_reason")
+				delete(info, "status_time")
+				channel.SetOtherInfo(info)
+			}
 		}
 	}
 }
@@ -654,6 +660,14 @@ func UpdateChannelStatus(channelId int, usingKey string, status int, reason stri
 			pollingLock.Unlock()
 			if beforeStatus != channelCache.Status {
 				CacheUpdateChannelStatus(channelId, channelCache.Status)
+				channelSyncLock.Lock()
+				if live, ok := channelsIDM[channelId]; ok && live != channelCache {
+					live.ChannelInfo.MultiKeyStatusList = channelCache.ChannelInfo.MultiKeyStatusList
+					live.ChannelInfo.MultiKeyDisabledReason = channelCache.ChannelInfo.MultiKeyDisabledReason
+					live.ChannelInfo.MultiKeyDisabledTime = channelCache.ChannelInfo.MultiKeyDisabledTime
+					live.OtherInfo = channelCache.OtherInfo
+				}
+				channelSyncLock.Unlock()
 			}
 			//CacheUpdateChannel(channelCache)
 			//return true

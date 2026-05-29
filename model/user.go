@@ -1006,6 +1006,22 @@ func updateUserQuotaUsedQuotaAndRequestCount(id int, quota int, usedQuota int, r
 	).Error
 	if err != nil {
 		common.SysLog("failed to batch update user quota, used quota and request count: " + err.Error())
+		// Fall back to individual updates so a single field failure doesn't lose others
+		if quota != 0 {
+			if e := DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error; e != nil {
+				common.SysLog("failed to fallback update user quota: " + e.Error())
+			}
+		}
+		if usedQuota != 0 {
+			if e := DB.Model(&User{}).Where("id = ?", id).Update("used_quota", gorm.Expr("used_quota + ?", usedQuota)).Error; e != nil {
+				common.SysLog("failed to fallback update user used_quota: " + e.Error())
+			}
+		}
+		if requestCount != 0 {
+			if e := DB.Model(&User{}).Where("id = ?", id).Update("request_count", gorm.Expr("request_count + ?", requestCount)).Error; e != nil {
+				common.SysLog("failed to fallback update user request_count: " + e.Error())
+			}
+		}
 	}
 }
 

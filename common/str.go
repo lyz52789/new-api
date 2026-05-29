@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/samber/lo"
@@ -28,7 +29,12 @@ func LocalLogPreview(content string) string {
 	if DebugEnabled || len(content) <= LocalLogContentLimit {
 		return content
 	}
-	return fmt.Sprintf("%s... [truncated, original_length=%d, limit=%d]", content[:LocalLogContentLimit], len(content), LocalLogContentLimit)
+	// Truncate at a valid UTF-8 boundary to avoid splitting multi-byte characters
+	truncated := content[:LocalLogContentLimit]
+	for len(truncated) > 0 && !utf8.Valid([]byte(truncated)) {
+		truncated = truncated[:len(truncated)-1]
+	}
+	return fmt.Sprintf("%s... [truncated, original_length=%d, limit=%d]", truncated, len(content), LocalLogContentLimit)
 }
 
 func GetStringIfEmpty(str string, defaultValue string) string {
