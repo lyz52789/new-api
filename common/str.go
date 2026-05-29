@@ -3,12 +3,10 @@ package common
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 	"unsafe"
 
 	"github.com/samber/lo"
@@ -21,21 +19,6 @@ var (
 	// maskApiKeyPattern matches patterns like 'api_key:xxx' or "api_key:xxx" to mask the API key value
 	maskApiKeyPattern = regexp.MustCompile(`(['"]?)api_key:([^\s'"]+)(['"]?)`)
 )
-
-const LocalLogContentLimit = 2048
-
-// LocalLogPreview limits log-only content unless debug logging is enabled.
-func LocalLogPreview(content string) string {
-	if DebugEnabled || len(content) <= LocalLogContentLimit {
-		return content
-	}
-	// Truncate at a valid UTF-8 boundary to avoid splitting multi-byte characters
-	truncated := content[:LocalLogContentLimit]
-	for len(truncated) > 0 && !utf8.Valid([]byte(truncated)) {
-		truncated = truncated[:len(truncated)-1]
-	}
-	return fmt.Sprintf("%s... [truncated, original_length=%d, limit=%d]", truncated, len(content), LocalLogContentLimit)
-}
 
 func GetStringIfEmpty(str string, defaultValue string) string {
 	if str == "" {
