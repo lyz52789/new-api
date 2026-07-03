@@ -40,8 +40,8 @@ type Pricing struct {
 type VideoPricing struct {
 	BillingMode       string            `json:"billing_mode"`
 	Currency          string            `json:"currency"`
-	UsdCnyRate        float64           `json:"usd_cny_rate"`
-	Markup            float64           `json:"markup"`
+	UsdCnyRate        float64           `json:"-"`
+	Markup            float64           `json:"-"`
 	GroupRatioApplied bool              `json:"group_ratio_applied"`
 	Formula           string            `json:"formula"`
 	Rows              []VideoPricingRow `json:"rows"`
@@ -51,14 +51,14 @@ type VideoPricingRow struct {
 	Resolution             string  `json:"resolution"`
 	Scenario               string  `json:"scenario"`
 	ScenarioLabel          string  `json:"scenario_label"`
-	OfficialUSDPerMTokens  float64 `json:"official_usd_per_m_tokens,omitempty"`
+	OfficialUSDPerMTokens  float64 `json:"-"`
 	SaleRMBPerMTokens      float64 `json:"sale_rmb_per_m_tokens,omitempty"`
-	OfficialUSDPerVideo    float64 `json:"official_usd_per_video,omitempty"`
+	OfficialUSDPerVideo    float64 `json:"-"`
 	SaleRMBPerVideo        float64 `json:"sale_rmb_per_video,omitempty"`
-	OfficialUSDPerSecond   float64 `json:"official_usd_per_second,omitempty"`
+	OfficialUSDPerSecond   float64 `json:"-"`
 	SaleRMBPerSecond       float64 `json:"sale_rmb_per_second,omitempty"`
-	OfficialUSDPerVideoMin float64 `json:"official_usd_per_video_min,omitempty"`
-	OfficialUSDPerVideoMax float64 `json:"official_usd_per_video_max,omitempty"`
+	OfficialUSDPerVideoMin float64 `json:"-"`
+	OfficialUSDPerVideoMax float64 `json:"-"`
 	SaleRMBPerVideoMin     float64 `json:"sale_rmb_per_video_min,omitempty"`
 	SaleRMBPerVideoMax     float64 `json:"sale_rmb_per_video_max,omitempty"`
 }
@@ -467,7 +467,7 @@ func attachVideoPricing(pricing *Pricing) {
 			UsdCnyRate:        bytePlusVideoUsdCnyRate,
 			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
-			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；最终扣费 = 上游返回 total_tokens × 对应分辨率单价 × 分组倍率",
+			Formula:           "按分辨率、输入类型和实际用量动态计费；最终扣费以任务完成后的实际 tokens 为准",
 			Rows:              seedance20VideoRows(),
 		}
 	case "Seedance-2.0-fast-海外版", "doubao-seedance-2-0-fast-260128":
@@ -477,7 +477,7 @@ func attachVideoPricing(pricing *Pricing) {
 			UsdCnyRate:        bytePlusVideoUsdCnyRate,
 			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
-			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；fast 仅支持 480p/720p，最终扣费 = 上游返回 total_tokens × 对应分辨率单价 × 分组倍率",
+			Formula:           "fast 仅支持 480p/720p；按输入类型和实际用量动态计费，最终扣费以任务完成后的实际 tokens 为准",
 			Rows:              seedance20FastVideoRows(),
 		}
 	case "Seedance-1.5-pro-海外版", "doubao-seedance-1-5-pro-251215":
@@ -487,7 +487,7 @@ func attachVideoPricing(pricing *Pricing) {
 			UsdCnyRate:        bytePlusVideoUsdCnyRate,
 			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
-			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；generate_audio=false 时使用无音频单价",
+			Formula:           "按分辨率、是否生成音频和实际用量动态计费；generate_audio=false 时使用无音频售价",
 			Rows:              seedance15VideoRows(),
 		}
 	}

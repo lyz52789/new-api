@@ -107,25 +107,6 @@ const ModelPricingTable = ({
     return parts.length > 0 ? parts.join('；') : '-';
   };
 
-  const renderOfficialPrice = (row) => {
-    const parts = [];
-    if (row.official_usd_per_m_tokens) {
-      parts.push(`$${row.official_usd_per_m_tokens} / 1M tokens`);
-    }
-    if (row.official_usd_per_video) {
-      parts.push(`$${row.official_usd_per_video} / 条`);
-    }
-    if (row.official_usd_per_video_min || row.official_usd_per_video_max) {
-      parts.push(
-        `$${row.official_usd_per_video_min} - $${row.official_usd_per_video_max} / 条`,
-      );
-    }
-    if (row.official_usd_per_second) {
-      parts.push(`$${row.official_usd_per_second} / 秒`);
-    }
-    return parts.length > 0 ? parts.join('；') : '-';
-  };
-
   const renderVideoPricingTable = () => {
     const rows = modelData?.video_pricing?.rows;
     if (!Array.isArray(rows) || rows.length === 0) return null;
@@ -135,7 +116,6 @@ const ModelPricingTable = ({
       key: `${row.resolution}-${row.scenario}-${index}`,
       resolution: row.resolution,
       scenario: row.scenario_label || row.scenario,
-      official: renderOfficialPrice(row),
       sale: renderVideoSalePrice(row, displayGroup.ratio),
     }));
 
@@ -154,11 +134,7 @@ const ModelPricingTable = ({
         dataIndex: 'scenario',
       },
       {
-        title: t('官方价格'),
-        dataIndex: 'official',
-      },
-      {
-        title: `${t('售卖价')}（${displayGroup.group || t('默认')} ${displayGroup.ratio}x）`,
+        title: `${t('价格')}（${displayGroup.group || t('默认')}）`,
         dataIndex: 'sale',
         render: (text) => (
           <div className='font-semibold text-orange-600'>{text}</div>
