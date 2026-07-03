@@ -13,6 +13,7 @@ func TestForcedSeedanceResolutionForModel(t *testing.T) {
 		{name: "Seedance-2.0-1080P-海外版", want: "1080p", forced: true},
 		{name: "Seedance-2.0-4K-海外版", want: "4k", forced: true},
 		{name: "doubao-seedance-2-0-260128"},
+		{name: "Seedance-2.0-fast-海外版"},
 	}
 	for _, tt := range tests {
 		got, forced := ForcedSeedanceResolutionForModel(tt.name)
@@ -60,6 +61,24 @@ func TestGetVideoInputRatioSupportsResolutionAliases(t *testing.T) {
 	}
 	if got != 4.7/7.7 {
 		t.Fatalf("got %v, want %v", got, 4.7/7.7)
+	}
+}
+
+func TestGetVideoInputRatioSupportsFastModel(t *testing.T) {
+	got, ok := GetVideoInputRatio("Seedance-2.0-fast-海外版", "720P", false)
+	if !ok {
+		t.Fatal("expected configured price table for Seedance 2.0 Fast")
+	}
+	if got != 1.0 {
+		t.Fatalf("got %v, want 1", got)
+	}
+
+	got, ok = GetVideoInputRatio("Seedance-2.0-fast-海外版", "720P", true)
+	if !ok {
+		t.Fatal("expected configured price table for Seedance 2.0 Fast")
+	}
+	if got != 3.3/5.6 {
+		t.Fatalf("got %v, want %v", got, 3.3/5.6)
 	}
 }
 

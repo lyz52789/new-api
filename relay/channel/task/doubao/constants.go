@@ -27,12 +27,14 @@ type videoPriceKey struct {
 // use their own no-video-input price as the base, so marketplace display price
 // and runtime unit price stay aligned.
 var videoPriceTable = map[string]map[videoPriceKey]float64{
-	"doubao-seedance-2-0-260128": seedance20OverseasPrices,
-	"Seedance-2.0-海外版":           seedance20OverseasPrices,
-	"Seedance-2.0-480P-海外版":      seedance20OverseasPrices,
-	"Seedance-2.0-720P-海外版":      seedance20OverseasPrices,
-	"Seedance-2.0-1080P-海外版":     seedance20OverseasPrices,
-	"Seedance-2.0-4K-海外版":        seedance20OverseasPrices,
+	"doubao-seedance-2-0-260128":      seedance20OverseasPrices,
+	"Seedance-2.0-海外版":                seedance20OverseasPrices,
+	"Seedance-2.0-480P-海外版":           seedance20OverseasPrices,
+	"Seedance-2.0-720P-海外版":           seedance20OverseasPrices,
+	"Seedance-2.0-1080P-海外版":          seedance20OverseasPrices,
+	"Seedance-2.0-4K-海外版":             seedance20OverseasPrices,
+	"doubao-seedance-2-0-fast-260128": seedance20FastOverseasPrices,
+	"Seedance-2.0-fast-海外版":           seedance20FastOverseasPrices,
 }
 
 var seedance20OverseasPrices = map[videoPriceKey]float64{
@@ -42,6 +44,11 @@ var seedance20OverseasPrices = map[videoPriceKey]float64{
 	{is1080p: true, hasVideo: true}:  4.7,
 	{is4k: true, hasVideo: false}:    4.0,
 	{is4k: true, hasVideo: true}:     2.4,
+}
+
+var seedance20FastOverseasPrices = map[videoPriceKey]float64{
+	{hasVideo: false}: 5.6,
+	{hasVideo: true}:  3.3,
 }
 
 var seedance15ProOverseasPrices = map[bool]float64{
@@ -87,6 +94,12 @@ func GetSeedance15AudioRatio(modelName string, generateAudio bool) (float64, boo
 		return 0, false
 	}
 	return price / base, true
+}
+
+func IsSeedance20FastModel(modelName string) bool {
+	name := strings.ToLower(modelName)
+	return strings.Contains(name, "seedance-2.0-fast") ||
+		strings.Contains(name, "seedance-2-0-fast")
 }
 
 func videoPriceKeyForResolution(resolution string, hasVideo bool) videoPriceKey {

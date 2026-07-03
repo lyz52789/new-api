@@ -126,6 +126,9 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 	if err := forceSeedanceAliasResolution(&req); err != nil {
 		return service.TaskErrorWrapper(err, "invalid_resolution", http.StatusBadRequest)
 	}
+	if err := validateSeedanceModelResolution(&req); err != nil {
+		return service.TaskErrorWrapper(err, "invalid_resolution", http.StatusBadRequest)
+	}
 	c.Set("task_request", req)
 	return nil
 }
@@ -181,6 +184,23 @@ func forceSeedanceAliasResolution(req *relaycommon.TaskSubmitReq) error {
 	}
 	req.Metadata["resolution"] = forcedResolution
 	return nil
+}
+
+func validateSeedanceModelResolution(req *relaycommon.TaskSubmitReq) error {
+	if !IsSeedance20FastModel(req.Model) || req.Metadata == nil {
+		return nil
+	}
+	requested, _ := req.Metadata["resolution"].(string)
+	if requested == "" {
+		return nil
+	}
+	normalized := NormalizeVideoResolution(requested)
+	switch normalized {
+	case "480p", "720p":
+		return nil
+	default:
+		return fmt.Errorf("model %s supports only resolution=480p or 720p, got %s", req.Model, normalized)
+	}
 }
 
 // hasVideoInMetadata 直接检查 metadata 的 content 数组是否包含 video_url 条目，

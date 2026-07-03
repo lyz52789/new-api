@@ -48,6 +48,30 @@ func TestForceSeedance480PRejects4KConflict(t *testing.T) {
 	}
 }
 
+func TestValidateSeedanceFastAllows720P(t *testing.T) {
+	req := relaycommon.TaskSubmitReq{
+		Model:    "Seedance-2.0-fast-海外版",
+		Metadata: map[string]interface{}{"resolution": "720P"},
+	}
+	if err := validateSeedanceModelResolution(&req); err != nil {
+		t.Fatalf("validateSeedanceModelResolution returned error: %v", err)
+	}
+}
+
+func TestValidateSeedanceFastRejects1080P(t *testing.T) {
+	req := relaycommon.TaskSubmitReq{
+		Model:    "Seedance-2.0-fast-海外版",
+		Metadata: map[string]interface{}{"resolution": "1080P"},
+	}
+	err := validateSeedanceModelResolution(&req)
+	if err == nil {
+		t.Fatal("expected unsupported resolution error")
+	}
+	if !strings.Contains(err.Error(), "supports only resolution=480p or 720p") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEstimateBillingUsesForced4KAliasBasePrice(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())

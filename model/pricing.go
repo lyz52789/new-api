@@ -396,6 +396,15 @@ func seedance20VideoRows() []VideoPricingRow {
 	}
 }
 
+func seedance20FastVideoRows() []VideoPricingRow {
+	return []VideoPricingRow{
+		seedance20NoVideoRow("480p", 5.6, 0.28, 0.06),
+		seedance20NoVideoRow("720p", 5.6, 0.60, 0.12),
+		seedance20VideoInputRow("480p", 3.3, 0.30, 0.66),
+		seedance20VideoInputRow("720p", 3.3, 0.64, 1.43),
+	}
+}
+
 func seedance20NoVideoRow(resolution string, usdPerMTokens, usdPerVideo, usdPerSecond float64) VideoPricingRow {
 	return VideoPricingRow{
 		Resolution:            resolution,
@@ -460,6 +469,16 @@ func attachVideoPricing(pricing *Pricing) {
 			GroupRatioApplied: false,
 			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；最终扣费 = 上游返回 total_tokens × 对应分辨率单价 × 分组倍率",
 			Rows:              seedance20VideoRows(),
+		}
+	case "Seedance-2.0-fast-海外版", "doubao-seedance-2-0-fast-260128":
+		pricing.VideoPricing = &VideoPricing{
+			BillingMode:       "resolution_usage_tokens",
+			Currency:          "CNY",
+			UsdCnyRate:        bytePlusVideoUsdCnyRate,
+			Markup:            bytePlusVideoMarkup,
+			GroupRatioApplied: false,
+			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；fast 仅支持 480p/720p，最终扣费 = 上游返回 total_tokens × 对应分辨率单价 × 分组倍率",
+			Rows:              seedance20FastVideoRows(),
 		}
 	case "Seedance-1.5-pro-海外版", "doubao-seedance-1-5-pro-251215":
 		pricing.VideoPricing = &VideoPricing{
