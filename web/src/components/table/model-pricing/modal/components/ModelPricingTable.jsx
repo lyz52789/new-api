@@ -20,12 +20,16 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Card, Avatar, Typography, Table, Tag } from '@douyinfe/semi-ui';
 import { IconCoinMoneyStroked } from '@douyinfe/semi-icons';
-import { calculateModelPrice, getModelPriceItems } from '../../../../../helpers';
+import {
+  calculateModelPrice,
+  getModelPriceItems,
+} from '../../../../../helpers';
 
 const { Text } = Typography;
 
 const ModelPricingTable = ({
   modelData,
+  selectedGroup = 'all',
   groupRatio,
   currency,
   siteDisplayType,
@@ -40,13 +44,152 @@ const ModelPricingTable = ({
     ? modelData.enable_groups
     : [];
   const autoChain = autoGroups.filter((g) => modelEnableGroups.includes(g));
-  const renderGroupPriceTable = () => {
-    // 仅展示模型可用的分组：模型 enable_groups 与用户可用分组的交集
-
-    const availableGroups = Object.keys(usableGroup || {})
+  const getAvailableGroups = () =>
+    Object.keys(usableGroup || {})
       .filter((g) => g !== '')
       .filter((g) => g !== 'auto')
       .filter((g) => modelEnableGroups.includes(g));
+
+  const resolveDisplayGroup = () => {
+    const availableGroups = getAvailableGroups();
+    if (
+      selectedGroup !== 'all' &&
+      availableGroups.includes(selectedGroup) &&
+      groupRatio?.[selectedGroup] !== undefined
+    ) {
+      return {
+        group: selectedGroup,
+        ratio: groupRatio[selectedGroup],
+      };
+    }
+
+    let minGroup = availableGroups[0] || '';
+    let minRatio = groupRatio?.[minGroup] ?? 1;
+    availableGroups.forEach((group) => {
+      const ratio = groupRatio?.[group] ?? 1;
+      if (ratio < minRatio) {
+        minGroup = group;
+        minRatio = ratio;
+      }
+    });
+    return {
+      group: minGroup,
+      ratio: minRatio || 1,
+    };
+  };
+
+  const formatRMB = (value, multiplier = 1) => {
+    if (value === undefined || value === null || value === '') return '-';
+    const n = Number(value) * Number(multiplier || 1);
+    if (!Number.isFinite(n)) return '-';
+    return `¥${n.toFixed(4).replace(/\.?0+$/, '')}`;
+  };
+
+  const renderVideoSalePrice = (row, ratio) => {
+    const parts = [];
+    if (row.sale_rmb_per_m_tokens) {
+      parts.push(`${formatRMB(row.sale_rmb_per_m_tokens, ratio)} / 1M tokens`);
+    }
+    if (row.sale_rmb_per_video) {
+      parts.push(`${formatRMB(row.sale_rmb_per_video, ratio)} / 条`);
+    }
+    if (row.sale_rmb_per_video_min || row.sale_rmb_per_video_max) {
+      parts.push(
+        `${formatRMB(row.sale_rmb_per_video_min, ratio)} - ${formatRMB(
+          row.sale_rmb_per_video_max,
+          ratio,
+        )} / 条`,
+      );
+    }
+    if (row.sale_rmb_per_second) {
+      parts.push(`${formatRMB(row.sale_rmb_per_second, ratio)} / 秒`);
+    }
+    return parts.length > 0 ? parts.join('；') : '-';
+  };
+
+  const renderOfficialPrice = (row) => {
+    const parts = [];
+    if (row.official_usd_per_m_tokens) {
+      parts.push(`$${row.official_usd_per_m_tokens} / 1M tokens`);
+    }
+    if (row.official_usd_per_video) {
+      parts.push(`$${row.official_usd_per_video} / 条`);
+    }
+    if (row.official_usd_per_video_min || row.official_usd_per_video_max) {
+      parts.push(
+        `$${row.official_usd_per_video_min} - $${row.official_usd_per_video_max} / 条`,
+      );
+    }
+    if (row.official_usd_per_second) {
+      parts.push(`$${row.official_usd_per_second} / 秒`);
+    }
+    return parts.length > 0 ? parts.join('；') : '-';
+  };
+
+  const renderVideoPricingTable = () => {
+    const rows = modelData?.video_pricing?.rows;
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+
+    const displayGroup = resolveDisplayGroup();
+    const tableData = rows.map((row, index) => ({
+      key: `${row.resolution}-${row.scenario}-${index}`,
+      resolution: row.resolution,
+      scenario: row.scenario_label || row.scenario,
+      official: renderOfficialPrice(row),
+      sale: renderVideoSalePrice(row, displayGroup.ratio),
+    }));
+
+    const columns = [
+      {
+        title: t('分辨率'),
+        dataIndex: 'resolution',
+        render: (text) => (
+          <Tag color='white' size='small' shape='circle'>
+            {String(text).toUpperCase()}
+          </Tag>
+        ),
+      },
+      {
+        title: t('场景'),
+        dataIndex: 'scenario',
+      },
+      {
+        title: t('官方价格'),
+        dataIndex: 'official',
+      },
+      {
+        title: `${t('售卖价')}（${displayGroup.group || t('默认')} ${displayGroup.ratio}x）`,
+        dataIndex: 'sale',
+        render: (text) => (
+          <div className='font-semibold text-orange-600'>{text}</div>
+        ),
+      },
+    ];
+
+    return (
+      <div className='mb-6'>
+        <div className='mb-3'>
+          <Text className='text-base font-medium'>{t('视频分辨率价格')}</Text>
+          <div className='text-xs text-gray-600 mt-1'>
+            {modelData.video_pricing.formula}
+          </div>
+        </div>
+        <Table
+          dataSource={tableData}
+          columns={columns}
+          pagination={false}
+          size='small'
+          bordered={false}
+          className='!rounded-lg'
+        />
+      </div>
+    );
+  };
+
+  const renderGroupPriceTable = () => {
+    // 仅展示模型可用的分组：模型 enable_groups 与用户可用分组的交集
+
+    const availableGroups = getAvailableGroups();
 
     // 准备表格数据
     const tableData = availableGroups.map((group) => {
@@ -180,6 +323,7 @@ const ModelPricingTable = ({
           ))}
         </div>
       )}
+      {renderVideoPricingTable()}
       {renderGroupPriceTable()}
     </Card>
   );

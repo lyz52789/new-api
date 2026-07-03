@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -713,4 +714,58 @@ func TestSettle_NonPerCall_AdaptorAdjustWorks(t *testing.T) {
 	log := getLastLog(t)
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeRefund, log.Type)
+}
+
+func TestRecalculateTaskQuotaByTokens_AppliesSeedanceOtherRatios(t *testing.T) {
+	truncate(t)
+	ctx := context.Background()
+
+	oldModelRatio := ratio_setting.ModelRatio2JSONString()
+	oldGroupRatio := ratio_setting.GroupRatio2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(oldModelRatio))
+		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(oldGroupRatio))
+	})
+
+	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"Seedance-2.0-1080P-海外版":61.831}`))
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"byteplus":1}`))
+
+	const userID, tokenID, channelID = 33, 33, 33
+	const initQuota, tokenRemain = 100000, 100000
+	const preConsumed = 30000
+	const totalTokens = 1000
+	const unitPriceRatio = 4.7 / 7.7
+	expectedActualQuota := int(float64(totalTokens) * 61.831 * unitPriceRatio)
+
+	seedUser(t, userID, initQuota)
+	seedToken(t, tokenID, userID, "sk-seedance-token-recalc", tokenRemain)
+	seedChannel(t, channelID)
+
+	task := makeTask(userID, channelID, preConsumed, tokenID, BillingSourceWallet, 0)
+	task.Group = "byteplus"
+	task.Properties.OriginModelName = "Seedance-2.0-1080P-海外版"
+	task.PrivateData.BillingContext.OriginModelName = "Seedance-2.0-1080P-海外版"
+	task.PrivateData.BillingContext.ModelRatio = 61.831
+	task.PrivateData.BillingContext.GroupRatio = 1
+	task.PrivateData.BillingContext.OtherRatios = map[string]float64{
+		"seedance_unit_price": unitPriceRatio,
+	}
+	require.NoError(t, model.DB.Create(task).Error)
+
+	RecalculateTaskQuotaByTokens(ctx, task, totalTokens)
+
+	assert.Equal(t, expectedActualQuota, task.Quota)
+	var reloaded model.Task
+	require.NoError(t, model.DB.First(&reloaded, task.ID).Error)
+	assert.Equal(t, expectedActualQuota, reloaded.Quota)
+	assert.Equal(t, initQuota-(expectedActualQuota-preConsumed), getUserQuota(t, userID))
+	assert.Equal(t, tokenRemain-(expectedActualQuota-preConsumed), getTokenRemainQuota(t, tokenID))
+
+	log := getLastLog(t)
+	require.NotNil(t, log)
+	assert.Equal(t, model.LogTypeConsume, log.Type)
+	assert.Equal(t, expectedActualQuota-preConsumed, log.Quota)
+	assert.Equal(t, "Seedance-2.0-1080P-海外版", log.ModelName)
+	assert.Contains(t, log.Other, "seedance_unit_price")
+	assert.Contains(t, log.Other, "actual_quota")
 }

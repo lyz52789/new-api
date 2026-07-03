@@ -116,7 +116,18 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 // ValidateRequestAndSetAction parses body, validates fields and sets default action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
 	// Accept only POST /v1/video/generations as "generate" action.
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	if taskErr = relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate); taskErr != nil {
+		return taskErr
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapper(err, "invalid_request", http.StatusBadRequest)
+	}
+	if err := forceSeedanceAliasResolution(&req); err != nil {
+		return service.TaskErrorWrapper(err, "invalid_resolution", http.StatusBadRequest)
+	}
+	c.Set("task_request", req)
+	return nil
 }
 
 // BuildRequestURL constructs the upstream URL.
@@ -132,17 +143,43 @@ func (a *TaskAdaptor) BuildRequestHeader(_ *gin.Context, req *http.Request, _ *r
 	return nil
 }
 
-// EstimateBilling 检测请求 metadata 中是否包含视频输入，返回视频折扣 OtherRatio。
+// EstimateBilling 根据请求 metadata 中的输出分辨率与是否包含视频输入，返回相对基准价的计费 OtherRatio。
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
 	req, err := relaycommon.GetTaskRequest(c)
 	if err != nil {
 		return nil
 	}
-	if hasVideoInMetadata(req.Metadata) {
-		if ratio, ok := GetVideoInputRatio(info.OriginModelName); ok {
-			return map[string]float64{"video_input": ratio}
+	generateAudio := true
+	if v, ok := req.Metadata["generate_audio"].(bool); ok {
+		generateAudio = v
+	}
+	if ratio, ok := GetSeedance15AudioRatio(info.OriginModelName, generateAudio); ok && ratio != 1.0 {
+		return map[string]float64{"seedance_unit_price": ratio}
+	}
+	hasVideo := hasVideoInMetadata(req.Metadata)
+	resolution, _ := req.Metadata["resolution"].(string)
+	ratio, ok := GetVideoInputRatio(info.OriginModelName, resolution, hasVideo)
+	if !ok || ratio == 1.0 {
+		return nil
+	}
+	return map[string]float64{"seedance_unit_price": ratio}
+}
+
+func forceSeedanceAliasResolution(req *relaycommon.TaskSubmitReq) error {
+	forcedResolution, ok := ForcedSeedanceResolutionForModel(req.Model)
+	if !ok {
+		return nil
+	}
+	if req.Metadata == nil {
+		req.Metadata = map[string]interface{}{}
+	}
+	if requested, _ := req.Metadata["resolution"].(string); requested != "" {
+		normalized := NormalizeVideoResolution(requested)
+		if normalized != forcedResolution {
+			return fmt.Errorf("model %s requires resolution=%s, got %s", req.Model, forcedResolution, normalized)
 		}
 	}
+	req.Metadata["resolution"] = forcedResolution
 	return nil
 }
 
@@ -328,6 +365,9 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		// 解析 usage 信息用于按倍率计费
 		taskResult.CompletionTokens = resTask.Usage.CompletionTokens
 		taskResult.TotalTokens = resTask.Usage.TotalTokens
+		if taskResult.TotalTokens <= 0 {
+			taskResult.TotalTokens = taskResult.CompletionTokens
+		}
 	case "failed":
 		taskResult.Status = model.TaskStatusFailure
 		taskResult.Progress = "100%"

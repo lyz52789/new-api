@@ -33,6 +33,7 @@ const ModelDetailSideSheet = ({
   visible,
   onClose,
   modelData,
+  selectedGroup,
   groupRatio,
   currency,
   siteDisplayType,
@@ -64,7 +65,7 @@ const ModelDetailSideSheet = ({
       closeIcon={
         <Button
           className='semi-button-tertiary semi-button-size-small semi-button-borderless'
-          type='button'
+          htmlType='button'
           icon={<IconClose />}
           onClick={onClose}
         />
@@ -91,6 +92,7 @@ const ModelDetailSideSheet = ({
             />
             <ModelPricingTable
               modelData={modelData}
+              selectedGroup={selectedGroup}
               groupRatio={groupRatio}
               currency={currency}
               siteDisplayType={siteDisplayType}

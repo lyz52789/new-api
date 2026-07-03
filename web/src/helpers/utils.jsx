@@ -643,6 +643,17 @@ export const calculateModelPrice = ({
     }
   }
 
+  if (record.video_pricing) {
+    return {
+      isVideoDynamic: true,
+      videoPricing: record.video_pricing,
+      isPerToken: false,
+      isTokensDisplay: quotaDisplayType === 'TOKENS',
+      usedGroup,
+      usedGroupRatio,
+    };
+  }
+
   // 2. 根据计费类型计算价格
   if (record.quota_type === 0) {
     // 按量计费
@@ -762,6 +773,26 @@ export const calculateModelPrice = ({
 };
 
 export const getModelPriceItems = (priceData, t, quotaDisplayType = 'USD') => {
+  if (priceData.isVideoDynamic) {
+    const rowCount = Array.isArray(priceData.videoPricing?.rows)
+      ? priceData.videoPricing.rows.length
+      : 0;
+    return [
+      {
+        key: 'video-dynamic',
+        label: t('视频动态计费'),
+        value: t('{{count}}档价格', { count: rowCount }),
+        suffix: t('按分辨率/输入类型结算'),
+      },
+      {
+        key: 'video-group',
+        label: t('分组倍率'),
+        value: priceData.usedGroupRatio ?? 1,
+        suffix: 'x',
+      },
+    ];
+  }
+
   if (priceData.isPerToken) {
     if (quotaDisplayType === 'TOKENS' || priceData.isTokensDisplay) {
       return [

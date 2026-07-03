@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"sync"
@@ -32,7 +33,34 @@ type Pricing struct {
 	AudioCompletionRatio   *float64                `json:"audio_completion_ratio,omitempty"`
 	EnableGroup            []string                `json:"enable_groups"`
 	SupportedEndpointTypes []constant.EndpointType `json:"supported_endpoint_types"`
+	VideoPricing           *VideoPricing           `json:"video_pricing,omitempty"`
 	PricingVersion         string                  `json:"pricing_version,omitempty"`
+}
+
+type VideoPricing struct {
+	BillingMode       string            `json:"billing_mode"`
+	Currency          string            `json:"currency"`
+	UsdCnyRate        float64           `json:"usd_cny_rate"`
+	Markup            float64           `json:"markup"`
+	GroupRatioApplied bool              `json:"group_ratio_applied"`
+	Formula           string            `json:"formula"`
+	Rows              []VideoPricingRow `json:"rows"`
+}
+
+type VideoPricingRow struct {
+	Resolution             string  `json:"resolution"`
+	Scenario               string  `json:"scenario"`
+	ScenarioLabel          string  `json:"scenario_label"`
+	OfficialUSDPerMTokens  float64 `json:"official_usd_per_m_tokens,omitempty"`
+	SaleRMBPerMTokens      float64 `json:"sale_rmb_per_m_tokens,omitempty"`
+	OfficialUSDPerVideo    float64 `json:"official_usd_per_video,omitempty"`
+	SaleRMBPerVideo        float64 `json:"sale_rmb_per_video,omitempty"`
+	OfficialUSDPerSecond   float64 `json:"official_usd_per_second,omitempty"`
+	SaleRMBPerSecond       float64 `json:"sale_rmb_per_second,omitempty"`
+	OfficialUSDPerVideoMin float64 `json:"official_usd_per_video_min,omitempty"`
+	OfficialUSDPerVideoMax float64 `json:"official_usd_per_video_max,omitempty"`
+	SaleRMBPerVideoMin     float64 `json:"sale_rmb_per_video_min,omitempty"`
+	SaleRMBPerVideoMax     float64 `json:"sale_rmb_per_video_max,omitempty"`
 }
 
 type PricingVendor struct {
@@ -319,6 +347,7 @@ func updatePricing() {
 			audioCompletionRatio := ratio_setting.GetAudioCompletionRatio(model)
 			pricing.AudioCompletionRatio = &audioCompletionRatio
 		}
+		attachVideoPricing(&pricing)
 		pricingMap = append(pricingMap, pricing)
 	}
 
@@ -343,4 +372,104 @@ func updatePricing() {
 // GetSupportedEndpointMap 返回全局端点到路径的映射
 func GetSupportedEndpointMap() map[string]common.EndpointInfo {
 	return supportedEndpointMap
+}
+
+const (
+	bytePlusVideoUsdCnyRate = 7.3
+	bytePlusVideoMarkup     = 2.2
+)
+
+func bytePlusVideoSaleRMB(officialUSD float64) float64 {
+	return math.Round(officialUSD*bytePlusVideoUsdCnyRate*bytePlusVideoMarkup*10000) / 10000
+}
+
+func seedance20VideoRows() []VideoPricingRow {
+	return []VideoPricingRow{
+		seedance20NoVideoRow("480p", 7.0, 0.35, 0.07),
+		seedance20NoVideoRow("720p", 7.0, 0.76, 0.15),
+		seedance20NoVideoRow("1080p", 7.7, 1.87, 0.37),
+		seedance20NoVideoRow("4k", 4.0, 3.89, 0.78),
+		seedance20VideoInputRow("480p", 4.3, 0.39, 0.86),
+		seedance20VideoInputRow("720p", 4.3, 0.84, 1.86),
+		seedance20VideoInputRow("1080p", 4.7, 2.06, 4.57),
+		seedance20VideoInputRow("4k", 2.4, 4.20, 9.33),
+	}
+}
+
+func seedance20NoVideoRow(resolution string, usdPerMTokens, usdPerVideo, usdPerSecond float64) VideoPricingRow {
+	return VideoPricingRow{
+		Resolution:            resolution,
+		Scenario:              "text_or_image_to_video",
+		ScenarioLabel:         "文本/图片生成视频",
+		OfficialUSDPerMTokens: usdPerMTokens,
+		SaleRMBPerMTokens:     bytePlusVideoSaleRMB(usdPerMTokens),
+		OfficialUSDPerVideo:   usdPerVideo,
+		SaleRMBPerVideo:       bytePlusVideoSaleRMB(usdPerVideo),
+		OfficialUSDPerSecond:  usdPerSecond,
+		SaleRMBPerSecond:      bytePlusVideoSaleRMB(usdPerSecond),
+	}
+}
+
+func seedance20VideoInputRow(resolution string, usdPerMTokens, usdPerVideoMin, usdPerVideoMax float64) VideoPricingRow {
+	return VideoPricingRow{
+		Resolution:             resolution,
+		Scenario:               "video_to_video",
+		ScenarioLabel:          "视频输入生成视频",
+		OfficialUSDPerMTokens:  usdPerMTokens,
+		SaleRMBPerMTokens:      bytePlusVideoSaleRMB(usdPerMTokens),
+		OfficialUSDPerVideoMin: usdPerVideoMin,
+		OfficialUSDPerVideoMax: usdPerVideoMax,
+		SaleRMBPerVideoMin:     bytePlusVideoSaleRMB(usdPerVideoMin),
+		SaleRMBPerVideoMax:     bytePlusVideoSaleRMB(usdPerVideoMax),
+	}
+}
+
+func seedance15VideoRows() []VideoPricingRow {
+	return []VideoPricingRow{
+		seedance15Row("480p", "audio", "带音频", 2.4, 0.12),
+		seedance15Row("480p", "silent", "无音频", 1.2, 0.06),
+		seedance15Row("480p", "draft_audio", "草稿模式带音频", 2.4, 0.07),
+		seedance15Row("480p", "draft_silent", "草稿模式无音频", 1.2, 0.04),
+		seedance15Row("720p", "audio", "带音频", 2.4, 0.26),
+		seedance15Row("720p", "silent", "无音频", 1.2, 0.13),
+		seedance15Row("1080p", "audio", "带音频", 2.4, 0.58),
+		seedance15Row("1080p", "silent", "无音频", 1.2, 0.29),
+	}
+}
+
+func seedance15Row(resolution, scenario, scenarioLabel string, usdPerMTokens, usdPerVideo float64) VideoPricingRow {
+	return VideoPricingRow{
+		Resolution:            resolution,
+		Scenario:              scenario,
+		ScenarioLabel:         scenarioLabel,
+		OfficialUSDPerMTokens: usdPerMTokens,
+		SaleRMBPerMTokens:     bytePlusVideoSaleRMB(usdPerMTokens),
+		OfficialUSDPerVideo:   usdPerVideo,
+		SaleRMBPerVideo:       bytePlusVideoSaleRMB(usdPerVideo),
+	}
+}
+
+func attachVideoPricing(pricing *Pricing) {
+	switch pricing.ModelName {
+	case "Seedance-2.0-海外版", "doubao-seedance-2-0-260128":
+		pricing.VideoPricing = &VideoPricing{
+			BillingMode:       "resolution_usage_tokens",
+			Currency:          "CNY",
+			UsdCnyRate:        bytePlusVideoUsdCnyRate,
+			Markup:            bytePlusVideoMarkup,
+			GroupRatioApplied: false,
+			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；最终扣费 = 上游返回 total_tokens × 对应分辨率单价 × 分组倍率",
+			Rows:              seedance20VideoRows(),
+		}
+	case "Seedance-1.5-pro-海外版", "doubao-seedance-1-5-pro-251215":
+		pricing.VideoPricing = &VideoPricing{
+			BillingMode:       "resolution_audio_usage_tokens",
+			Currency:          "CNY",
+			UsdCnyRate:        bytePlusVideoUsdCnyRate,
+			Markup:            bytePlusVideoMarkup,
+			GroupRatioApplied: false,
+			Formula:           "售价 = 官方美元价 × 7.3 × 2.2 × 分组倍率；generate_audio=false 时使用无音频单价",
+			Rows:              seedance15VideoRows(),
+		}
+	}
 }
