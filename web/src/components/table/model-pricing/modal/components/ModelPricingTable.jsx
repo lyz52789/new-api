@@ -87,9 +87,6 @@ const ModelPricingTable = ({
 
   const renderVideoSalePrice = (row, ratio) => {
     const parts = [];
-    if (row.sale_rmb_per_m_tokens) {
-      parts.push(`${formatRMB(row.sale_rmb_per_m_tokens, ratio)} / 1M tokens`);
-    }
     if (row.sale_rmb_per_video) {
       parts.push(`${formatRMB(row.sale_rmb_per_video, ratio)} / 条`);
     }
@@ -103,6 +100,9 @@ const ModelPricingTable = ({
     }
     if (row.sale_rmb_per_second) {
       parts.push(`${formatRMB(row.sale_rmb_per_second, ratio)} / 秒`);
+    }
+    if (row.sale_rmb_per_m_tokens) {
+      parts.push(`${formatRMB(row.sale_rmb_per_m_tokens, ratio)} / 1M tokens`);
     }
     return parts.length > 0 ? parts.join('；') : '-';
   };

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -234,7 +233,7 @@ func updatePricing() {
 			continue
 		}
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
+		if err := common.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
 			endpoints := make([]string, 0, len(raw))
 			for k, v := range raw {
 				switch v.(type) {
@@ -278,7 +277,7 @@ func updatePricing() {
 			continue
 		}
 		var raw map[string]interface{}
-		if err := json.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
+		if err := common.Unmarshal([]byte(meta.Endpoints), &raw); err == nil {
 			for k, v := range raw {
 				switch val := v.(type) {
 				case string:
@@ -455,6 +454,7 @@ func seedance15VideoRows(calc bytePlusVideoSaleCalculator) []VideoPricingRow {
 }
 
 func seedance15Row(calc bytePlusVideoSaleCalculator, resolution, scenario, scenarioLabel string, usdPerMTokens, usdPerVideo float64) VideoPricingRow {
+	const officialDurationSeconds = 5.0
 	return VideoPricingRow{
 		Resolution:            resolution,
 		Scenario:              scenario,
@@ -463,6 +463,8 @@ func seedance15Row(calc bytePlusVideoSaleCalculator, resolution, scenario, scena
 		SaleRMBPerMTokens:     calc.saleRMB(usdPerMTokens),
 		OfficialUSDPerVideo:   usdPerVideo,
 		SaleRMBPerVideo:       calc.saleRMB(usdPerVideo),
+		OfficialUSDPerSecond:  usdPerVideo / officialDurationSeconds,
+		SaleRMBPerSecond:      calc.saleRMB(usdPerVideo / officialDurationSeconds),
 	}
 }
 
@@ -474,7 +476,7 @@ func attachVideoPricing(pricing *Pricing) {
 			BillingMode:       "resolution_usage_tokens",
 			Currency:          "CNY",
 			GroupRatioApplied: false,
-			Formula:           "按分辨率、输入类型和实际用量动态计费；最终扣费以任务完成后的实际 tokens 为准",
+			Formula:           "按分辨率、输入类型和实际用量动态计费；¥/条、¥/秒为官方价格折算参考，最终扣费以任务完成后的实际 tokens 为准",
 			Rows:              seedance20VideoRows(calc),
 		}
 	case "Seedance-2.0-fast-海外版", "doubao-seedance-2-0-fast-260128":
@@ -483,7 +485,7 @@ func attachVideoPricing(pricing *Pricing) {
 			BillingMode:       "resolution_usage_tokens",
 			Currency:          "CNY",
 			GroupRatioApplied: false,
-			Formula:           "fast 仅支持 480p/720p；按输入类型和实际用量动态计费，最终扣费以任务完成后的实际 tokens 为准",
+			Formula:           "fast 仅支持 480p/720p；¥/条、¥/秒为官方价格折算参考，最终扣费以任务完成后的实际 tokens 为准",
 			Rows:              seedance20FastVideoRows(calc),
 		}
 	case "Seedance-1.5-pro-海外版", "doubao-seedance-1-5-pro-251215":
@@ -492,7 +494,7 @@ func attachVideoPricing(pricing *Pricing) {
 			BillingMode:       "resolution_audio_usage_tokens",
 			Currency:          "CNY",
 			GroupRatioApplied: false,
-			Formula:           "按分辨率、是否生成音频和实际用量动态计费；generate_audio=false 时使用无音频售价",
+			Formula:           "按分辨率、是否生成音频和实际用量动态计费；¥/条、¥/秒按官方 5 秒视频价格折算，generate_audio=false 时使用无音频售价",
 			Rows:              seedance15VideoRows(calc),
 		}
 	}

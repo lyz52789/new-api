@@ -59,6 +59,25 @@ func TestAttachVideoPricingAppliesOfficialScenarioRatios(t *testing.T) {
 	}
 }
 
+func TestAttachVideoPricingShowsSeedance15PerSecondReference(t *testing.T) {
+	pricing := &Pricing{ModelName: "Seedance-1.5-pro-海外版", ModelRatio: 19.272}
+	attachVideoPricing(pricing)
+
+	if pricing.VideoPricing == nil {
+		t.Fatal("expected video pricing")
+	}
+	row := pricing.VideoPricing.Rows[0]
+	if row.Resolution != "480p" || row.Scenario != "audio" {
+		t.Fatalf("row[0] = %s/%s, want 480p/audio", row.Resolution, row.Scenario)
+	}
+	if row.SaleRMBPerVideo != 1.9272 {
+		t.Fatalf("sale RMB/video = %v, want 1.9272", row.SaleRMBPerVideo)
+	}
+	if row.SaleRMBPerSecond != 0.3854 {
+		t.Fatalf("sale RMB/second = %v, want 0.3854", row.SaleRMBPerSecond)
+	}
+}
+
 func TestVideoPricingJSONDoesNotExposeCostBasis(t *testing.T) {
 	pricing := &Pricing{ModelName: "Seedance-2.0-fast-海外版", ModelRatio: 22.484}
 	attachVideoPricing(pricing)
