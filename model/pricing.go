@@ -40,8 +40,6 @@ type Pricing struct {
 type VideoPricing struct {
 	BillingMode       string            `json:"billing_mode"`
 	Currency          string            `json:"currency"`
-	UsdCnyRate        float64           `json:"-"`
-	Markup            float64           `json:"-"`
 	GroupRatioApplied bool              `json:"group_ratio_applied"`
 	Formula           string            `json:"formula"`
 	Rows              []VideoPricingRow `json:"rows"`
@@ -374,121 +372,128 @@ func GetSupportedEndpointMap() map[string]common.EndpointInfo {
 	return supportedEndpointMap
 }
 
-const (
-	bytePlusVideoUsdCnyRate = 7.3
-	bytePlusVideoMarkup     = 2.2
-)
-
-func bytePlusVideoSaleRMB(officialUSD float64) float64 {
-	return math.Round(officialUSD*bytePlusVideoUsdCnyRate*bytePlusVideoMarkup*10000) / 10000
+type bytePlusVideoSaleCalculator struct {
+	baseOfficialUSDPerMTokens float64
+	baseSaleRMBPerMTokens     float64
 }
 
-func seedance20VideoRows() []VideoPricingRow {
-	return []VideoPricingRow{
-		seedance20NoVideoRow("480p", 7.0, 0.35, 0.07),
-		seedance20NoVideoRow("720p", 7.0, 0.76, 0.15),
-		seedance20NoVideoRow("1080p", 7.7, 1.87, 0.37),
-		seedance20NoVideoRow("4k", 4.0, 3.89, 0.78),
-		seedance20VideoInputRow("480p", 4.3, 0.39, 0.86),
-		seedance20VideoInputRow("720p", 4.3, 0.84, 1.86),
-		seedance20VideoInputRow("1080p", 4.7, 2.06, 4.57),
-		seedance20VideoInputRow("4k", 2.4, 4.20, 9.33),
+func newBytePlusVideoSaleCalculator(modelRatio, baseOfficialUSDPerMTokens float64) bytePlusVideoSaleCalculator {
+	return bytePlusVideoSaleCalculator{
+		baseOfficialUSDPerMTokens: baseOfficialUSDPerMTokens,
+		baseSaleRMBPerMTokens:     modelRatio * 2,
 	}
 }
 
-func seedance20FastVideoRows() []VideoPricingRow {
+func (c bytePlusVideoSaleCalculator) saleRMB(officialUSD float64) float64 {
+	if c.baseOfficialUSDPerMTokens <= 0 || c.baseSaleRMBPerMTokens <= 0 {
+		return 0
+	}
+	return math.Round(officialUSD*c.baseSaleRMBPerMTokens/c.baseOfficialUSDPerMTokens*10000) / 10000
+}
+
+func seedance20VideoRows(calc bytePlusVideoSaleCalculator) []VideoPricingRow {
 	return []VideoPricingRow{
-		seedance20NoVideoRow("480p", 5.6, 0.28, 0.06),
-		seedance20NoVideoRow("720p", 5.6, 0.60, 0.12),
-		seedance20VideoInputRow("480p", 3.3, 0.30, 0.66),
-		seedance20VideoInputRow("720p", 3.3, 0.64, 1.43),
+		seedance20NoVideoRow(calc, "480p", 7.0, 0.35, 0.07),
+		seedance20NoVideoRow(calc, "720p", 7.0, 0.76, 0.15),
+		seedance20NoVideoRow(calc, "1080p", 7.7, 1.87, 0.37),
+		seedance20NoVideoRow(calc, "4k", 4.0, 3.89, 0.78),
+		seedance20VideoInputRow(calc, "480p", 4.3, 0.39, 0.86),
+		seedance20VideoInputRow(calc, "720p", 4.3, 0.84, 1.86),
+		seedance20VideoInputRow(calc, "1080p", 4.7, 2.06, 4.57),
+		seedance20VideoInputRow(calc, "4k", 2.4, 4.20, 9.33),
 	}
 }
 
-func seedance20NoVideoRow(resolution string, usdPerMTokens, usdPerVideo, usdPerSecond float64) VideoPricingRow {
+func seedance20FastVideoRows(calc bytePlusVideoSaleCalculator) []VideoPricingRow {
+	return []VideoPricingRow{
+		seedance20NoVideoRow(calc, "480p", 5.6, 0.28, 0.06),
+		seedance20NoVideoRow(calc, "720p", 5.6, 0.60, 0.12),
+		seedance20VideoInputRow(calc, "480p", 3.3, 0.30, 0.66),
+		seedance20VideoInputRow(calc, "720p", 3.3, 0.64, 1.43),
+	}
+}
+
+func seedance20NoVideoRow(calc bytePlusVideoSaleCalculator, resolution string, usdPerMTokens, usdPerVideo, usdPerSecond float64) VideoPricingRow {
 	return VideoPricingRow{
 		Resolution:            resolution,
 		Scenario:              "text_or_image_to_video",
 		ScenarioLabel:         "文本/图片生成视频",
 		OfficialUSDPerMTokens: usdPerMTokens,
-		SaleRMBPerMTokens:     bytePlusVideoSaleRMB(usdPerMTokens),
+		SaleRMBPerMTokens:     calc.saleRMB(usdPerMTokens),
 		OfficialUSDPerVideo:   usdPerVideo,
-		SaleRMBPerVideo:       bytePlusVideoSaleRMB(usdPerVideo),
+		SaleRMBPerVideo:       calc.saleRMB(usdPerVideo),
 		OfficialUSDPerSecond:  usdPerSecond,
-		SaleRMBPerSecond:      bytePlusVideoSaleRMB(usdPerSecond),
+		SaleRMBPerSecond:      calc.saleRMB(usdPerSecond),
 	}
 }
 
-func seedance20VideoInputRow(resolution string, usdPerMTokens, usdPerVideoMin, usdPerVideoMax float64) VideoPricingRow {
+func seedance20VideoInputRow(calc bytePlusVideoSaleCalculator, resolution string, usdPerMTokens, usdPerVideoMin, usdPerVideoMax float64) VideoPricingRow {
 	return VideoPricingRow{
 		Resolution:             resolution,
 		Scenario:               "video_to_video",
 		ScenarioLabel:          "视频输入生成视频",
 		OfficialUSDPerMTokens:  usdPerMTokens,
-		SaleRMBPerMTokens:      bytePlusVideoSaleRMB(usdPerMTokens),
+		SaleRMBPerMTokens:      calc.saleRMB(usdPerMTokens),
 		OfficialUSDPerVideoMin: usdPerVideoMin,
 		OfficialUSDPerVideoMax: usdPerVideoMax,
-		SaleRMBPerVideoMin:     bytePlusVideoSaleRMB(usdPerVideoMin),
-		SaleRMBPerVideoMax:     bytePlusVideoSaleRMB(usdPerVideoMax),
+		SaleRMBPerVideoMin:     calc.saleRMB(usdPerVideoMin),
+		SaleRMBPerVideoMax:     calc.saleRMB(usdPerVideoMax),
 	}
 }
 
-func seedance15VideoRows() []VideoPricingRow {
+func seedance15VideoRows(calc bytePlusVideoSaleCalculator) []VideoPricingRow {
 	return []VideoPricingRow{
-		seedance15Row("480p", "audio", "带音频", 2.4, 0.12),
-		seedance15Row("480p", "silent", "无音频", 1.2, 0.06),
-		seedance15Row("480p", "draft_audio", "草稿模式带音频", 2.4, 0.07),
-		seedance15Row("480p", "draft_silent", "草稿模式无音频", 1.2, 0.04),
-		seedance15Row("720p", "audio", "带音频", 2.4, 0.26),
-		seedance15Row("720p", "silent", "无音频", 1.2, 0.13),
-		seedance15Row("1080p", "audio", "带音频", 2.4, 0.58),
-		seedance15Row("1080p", "silent", "无音频", 1.2, 0.29),
+		seedance15Row(calc, "480p", "audio", "带音频", 2.4, 0.12),
+		seedance15Row(calc, "480p", "silent", "无音频", 1.2, 0.06),
+		seedance15Row(calc, "480p", "draft_audio", "草稿模式带音频", 2.4, 0.07),
+		seedance15Row(calc, "480p", "draft_silent", "草稿模式无音频", 1.2, 0.04),
+		seedance15Row(calc, "720p", "audio", "带音频", 2.4, 0.26),
+		seedance15Row(calc, "720p", "silent", "无音频", 1.2, 0.13),
+		seedance15Row(calc, "1080p", "audio", "带音频", 2.4, 0.58),
+		seedance15Row(calc, "1080p", "silent", "无音频", 1.2, 0.29),
 	}
 }
 
-func seedance15Row(resolution, scenario, scenarioLabel string, usdPerMTokens, usdPerVideo float64) VideoPricingRow {
+func seedance15Row(calc bytePlusVideoSaleCalculator, resolution, scenario, scenarioLabel string, usdPerMTokens, usdPerVideo float64) VideoPricingRow {
 	return VideoPricingRow{
 		Resolution:            resolution,
 		Scenario:              scenario,
 		ScenarioLabel:         scenarioLabel,
 		OfficialUSDPerMTokens: usdPerMTokens,
-		SaleRMBPerMTokens:     bytePlusVideoSaleRMB(usdPerMTokens),
+		SaleRMBPerMTokens:     calc.saleRMB(usdPerMTokens),
 		OfficialUSDPerVideo:   usdPerVideo,
-		SaleRMBPerVideo:       bytePlusVideoSaleRMB(usdPerVideo),
+		SaleRMBPerVideo:       calc.saleRMB(usdPerVideo),
 	}
 }
 
 func attachVideoPricing(pricing *Pricing) {
 	switch pricing.ModelName {
 	case "Seedance-2.0-海外版", "doubao-seedance-2-0-260128":
+		calc := newBytePlusVideoSaleCalculator(pricing.ModelRatio, 7.0)
 		pricing.VideoPricing = &VideoPricing{
 			BillingMode:       "resolution_usage_tokens",
 			Currency:          "CNY",
-			UsdCnyRate:        bytePlusVideoUsdCnyRate,
-			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
 			Formula:           "按分辨率、输入类型和实际用量动态计费；最终扣费以任务完成后的实际 tokens 为准",
-			Rows:              seedance20VideoRows(),
+			Rows:              seedance20VideoRows(calc),
 		}
 	case "Seedance-2.0-fast-海外版", "doubao-seedance-2-0-fast-260128":
+		calc := newBytePlusVideoSaleCalculator(pricing.ModelRatio, 5.6)
 		pricing.VideoPricing = &VideoPricing{
 			BillingMode:       "resolution_usage_tokens",
 			Currency:          "CNY",
-			UsdCnyRate:        bytePlusVideoUsdCnyRate,
-			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
 			Formula:           "fast 仅支持 480p/720p；按输入类型和实际用量动态计费，最终扣费以任务完成后的实际 tokens 为准",
-			Rows:              seedance20FastVideoRows(),
+			Rows:              seedance20FastVideoRows(calc),
 		}
 	case "Seedance-1.5-pro-海外版", "doubao-seedance-1-5-pro-251215":
+		calc := newBytePlusVideoSaleCalculator(pricing.ModelRatio, 2.4)
 		pricing.VideoPricing = &VideoPricing{
 			BillingMode:       "resolution_audio_usage_tokens",
 			Currency:          "CNY",
-			UsdCnyRate:        bytePlusVideoUsdCnyRate,
-			Markup:            bytePlusVideoMarkup,
 			GroupRatioApplied: false,
 			Formula:           "按分辨率、是否生成音频和实际用量动态计费；generate_audio=false 时使用无音频售价",
-			Rows:              seedance15VideoRows(),
+			Rows:              seedance15VideoRows(calc),
 		}
 	}
 }

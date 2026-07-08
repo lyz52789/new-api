@@ -1,13 +1,14 @@
 package model
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/QuantumNous/new-api/common"
 )
 
 func TestAttachVideoPricingForSeedance20Fast(t *testing.T) {
-	pricing := &Pricing{ModelName: "Seedance-2.0-fast-海外版"}
+	pricing := &Pricing{ModelName: "Seedance-2.0-fast-海外版", ModelRatio: 22.484}
 	attachVideoPricing(pricing)
 
 	if pricing.VideoPricing == nil {
@@ -21,16 +22,48 @@ func TestAttachVideoPricingForSeedance20Fast(t *testing.T) {
 			t.Fatalf("unexpected fast resolution %q", row.Resolution)
 		}
 	}
-	if pricing.VideoPricing.Rows[0].SaleRMBPerMTokens != 89.936 {
-		t.Fatalf("sale RMB/M = %v, want 89.936", pricing.VideoPricing.Rows[0].SaleRMBPerMTokens)
+	if pricing.VideoPricing.Rows[0].SaleRMBPerMTokens != 44.968 {
+		t.Fatalf("sale RMB/M = %v, want 44.968", pricing.VideoPricing.Rows[0].SaleRMBPerMTokens)
+	}
+	if pricing.VideoPricing.Rows[2].SaleRMBPerMTokens != 26.499 {
+		t.Fatalf("video input sale RMB/M = %v, want 26.499", pricing.VideoPricing.Rows[2].SaleRMBPerMTokens)
+	}
+}
+
+func TestAttachVideoPricingUsesConfiguredModelRatio(t *testing.T) {
+	oldPrice := &Pricing{ModelName: "Seedance-2.0-fast-海外版", ModelRatio: 44.968}
+	attachVideoPricing(oldPrice)
+	if oldPrice.VideoPricing.Rows[0].SaleRMBPerMTokens != 89.936 {
+		t.Fatalf("old sale RMB/M = %v, want 89.936", oldPrice.VideoPricing.Rows[0].SaleRMBPerMTokens)
+	}
+
+	newPrice := &Pricing{ModelName: "Seedance-2.0-fast-海外版", ModelRatio: 22.484}
+	attachVideoPricing(newPrice)
+	if newPrice.VideoPricing.Rows[0].SaleRMBPerMTokens != 44.968 {
+		t.Fatalf("new sale RMB/M = %v, want 44.968", newPrice.VideoPricing.Rows[0].SaleRMBPerMTokens)
+	}
+}
+
+func TestAttachVideoPricingAppliesOfficialScenarioRatios(t *testing.T) {
+	pricing := &Pricing{ModelName: "Seedance-2.0-海外版", ModelRatio: 28.105}
+	attachVideoPricing(pricing)
+
+	if pricing.VideoPricing == nil {
+		t.Fatal("expected video pricing")
+	}
+	if pricing.VideoPricing.Rows[2].Resolution != "1080p" {
+		t.Fatalf("row[2] resolution = %q, want 1080p", pricing.VideoPricing.Rows[2].Resolution)
+	}
+	if pricing.VideoPricing.Rows[2].SaleRMBPerMTokens != 61.831 {
+		t.Fatalf("1080p sale RMB/M = %v, want 61.831", pricing.VideoPricing.Rows[2].SaleRMBPerMTokens)
 	}
 }
 
 func TestVideoPricingJSONDoesNotExposeCostBasis(t *testing.T) {
-	pricing := &Pricing{ModelName: "Seedance-2.0-fast-海外版"}
+	pricing := &Pricing{ModelName: "Seedance-2.0-fast-海外版", ModelRatio: 22.484}
 	attachVideoPricing(pricing)
 
-	payload, err := json.Marshal(pricing)
+	payload, err := common.Marshal(pricing)
 	if err != nil {
 		t.Fatalf("Marshal returned error: %v", err)
 	}
@@ -39,8 +72,6 @@ func TestVideoPricingJSONDoesNotExposeCostBasis(t *testing.T) {
 		"official_usd",
 		"usd_cny_rate",
 		"markup",
-		"7.3",
-		"2.2",
 	} {
 		if strings.Contains(body, forbidden) {
 			t.Fatalf("public pricing JSON leaked %q: %s", forbidden, body)
