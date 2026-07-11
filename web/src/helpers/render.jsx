@@ -21,6 +21,10 @@ import i18next from 'i18next';
 import { Modal, Tag, Typography, Avatar } from '@douyinfe/semi-ui';
 import { copy, showSuccess } from './utils';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
+import {
+  quotaBaseToDisplayAmount,
+  resolveQuotaCurrencyConfig,
+} from './quotaCurrency';
 import { visit } from 'unist-util-visit';
 import * as LobeIcons from '@lobehub/icons';
 import {
@@ -997,25 +1001,9 @@ export function renderQuotaNumberWithDigit(num, digits = 2) {
   if (typeof num !== 'number' || isNaN(num)) {
     return 0;
   }
-  const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
-  num = num.toFixed(digits);
-  if (quotaDisplayType === 'CNY') {
-    return '¥' + num;
-  } else if (quotaDisplayType === 'USD') {
-    return '$' + num;
-  } else if (quotaDisplayType === 'CUSTOM') {
-    const statusStr = localStorage.getItem('status');
-    let symbol = '¤';
-    try {
-      if (statusStr) {
-        const s = JSON.parse(statusStr);
-        symbol = s?.custom_currency_symbol || symbol;
-      }
-    } catch (e) {}
-    return symbol + num;
-  } else {
-    return num;
-  }
+  const { symbol, rate, type } = getQuotaCurrencyConfig();
+  if (type === 'TOKENS') return num.toFixed(digits);
+  return symbol + quotaBaseToDisplayAmount(num, { rate }).toFixed(digits);
 }
 
 export function renderNumberWithPoint(num) {
@@ -1063,7 +1051,10 @@ export function renderUnitWithQuota(quota) {
 export function getQuotaWithUnit(quota, digits = 6) {
   let quotaPerUnit = localStorage.getItem('quota_per_unit');
   quotaPerUnit = parseFloat(quotaPerUnit);
-  return (quota / quotaPerUnit).toFixed(digits);
+  const baseAmount = quota / quotaPerUnit;
+  return quotaBaseToDisplayAmount(baseAmount, getQuotaCurrencyConfig()).toFixed(
+    digits,
+  );
 }
 
 export function renderQuotaWithAmount(amount) {
@@ -1073,24 +1064,12 @@ export function renderQuotaWithAmount(amount) {
   }
 
   const numericAmount = Number(amount);
-  const formattedAmount = Number.isFinite(numericAmount)
-    ? numericAmount.toFixed(2)
-    : amount;
-
-  if (quotaDisplayType === 'CNY') {
-    return '¥' + formattedAmount;
-  } else if (quotaDisplayType === 'CUSTOM') {
-    const statusStr = localStorage.getItem('status');
-    let symbol = '¤';
-    try {
-      if (statusStr) {
-        const s = JSON.parse(statusStr);
-        symbol = s?.custom_currency_symbol || symbol;
-      }
-    } catch (e) {}
-    return symbol + formattedAmount;
-  }
-  return '$' + formattedAmount;
+  if (!Number.isFinite(numericAmount)) return amount;
+  const config = getQuotaCurrencyConfig();
+  return `${config.symbol}${quotaBaseToDisplayAmount(
+    numericAmount,
+    config,
+  ).toFixed(2)}`;
 }
 
 /**
@@ -1125,6 +1104,24 @@ export function getCurrencyConfig() {
   return { symbol, rate, type: quotaDisplayType };
 }
 
+// Quota and model prices use the site's recharge-priced base unit. This is
+// distinct from getCurrencyConfig(), which converts true USD payment prices.
+export function getQuotaCurrencyConfig() {
+  const type = localStorage.getItem('quota_display_type') || 'USD';
+  let status = {};
+  try {
+    status = JSON.parse(localStorage.getItem('status') || '{}');
+  } catch (e) {}
+
+  return resolveQuotaCurrencyConfig({
+    type,
+    priceRate: status?.price ?? 1,
+    usdExchangeRate: status?.usd_exchange_rate ?? 1,
+    customExchangeRate: status?.custom_currency_exchange_rate ?? 1,
+    customCurrencySymbol: status?.custom_currency_symbol ?? '¤',
+  });
+}
+
 /**
  * 将美元金额转换为当前选择的货币
  * @param {number} usdAmount - 美元金额
@@ -1144,34 +1141,9 @@ export function renderQuota(quota, digits = 2) {
   if (quotaDisplayType === 'TOKENS') {
     return renderNumber(quota);
   }
-  const resultUSD = quota / quotaPerUnit;
-  let symbol = '$';
-  let value = resultUSD;
-  if (quotaDisplayType === 'CNY') {
-    const statusStr = localStorage.getItem('status');
-    let usdRate = 1;
-    try {
-      if (statusStr) {
-        const s = JSON.parse(statusStr);
-        usdRate = s?.usd_exchange_rate || 1;
-      }
-    } catch (e) {}
-    value = resultUSD * usdRate;
-    symbol = '¥';
-  } else if (quotaDisplayType === 'CUSTOM') {
-    const statusStr = localStorage.getItem('status');
-    let symbolCustom = '¤';
-    let rate = 1;
-    try {
-      if (statusStr) {
-        const s = JSON.parse(statusStr);
-        symbolCustom = s?.custom_currency_symbol || symbolCustom;
-        rate = s?.custom_currency_exchange_rate || rate;
-      }
-    } catch (e) {}
-    value = resultUSD * rate;
-    symbol = symbolCustom;
-  }
+  const result = quota / quotaPerUnit;
+  const { symbol, rate } = getQuotaCurrencyConfig();
+  const value = quotaBaseToDisplayAmount(result, { rate });
   const fixedResult = value.toFixed(digits);
   if (parseFloat(fixedResult) === 0 && quota > 0 && value > 0) {
     const minValue = Math.pow(10, -digits);
@@ -1227,7 +1199,7 @@ function shouldUseRatioBillingProcess(modelPrice = -1) {
 }
 
 function formatCompactDisplayPrice(usdAmount, digits = 6) {
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
   const amount = Number((usdAmount * rate).toFixed(digits));
   return `${symbol}${amount}`;
 }
@@ -1324,7 +1296,7 @@ function renderPriceSimpleCore({
   );
   const finalGroupRatio = effectiveGroupRatio;
 
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
   const hasSplitCacheCreation =
     cacheCreationTokens5m > 0 || cacheCreationTokens1h > 0;
 
@@ -1666,7 +1638,7 @@ export function renderModelPrice(
   );
   groupRatio = effectiveGroupRatio;
 
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
 
   if (!shouldUseRatioBillingProcess(modelPrice)) {
     if (modelPrice !== -1) {
@@ -2114,7 +2086,7 @@ export function renderLogContent(
   } = getEffectiveRatio(groupRatio, user_group_ratio);
 
   // 获取货币配置
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
 
   if (isPriceDisplayMode(displayMode, modelPrice)) {
     if (modelPrice !== -1) {
@@ -2286,7 +2258,7 @@ export function renderAudioModelPrice(
   groupRatio = effectiveGroupRatio;
 
   // 获取货币配置
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
 
   if (!shouldUseRatioBillingProcess(modelPrice)) {
     if (modelPrice !== -1) {
@@ -2574,7 +2546,7 @@ export function renderClaudeModelPrice(
   groupRatio = effectiveGroupRatio;
 
   // 获取货币配置
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
 
   if (!shouldUseRatioBillingProcess(modelPrice)) {
     if (modelPrice !== -1) {
@@ -2979,7 +2951,7 @@ export function renderClaudeLogContent(
   groupRatio = effectiveGroupRatio;
 
   // 获取货币配置
-  const { symbol, rate } = getCurrencyConfig();
+  const { symbol, rate } = getQuotaCurrencyConfig();
 
   if (isPriceDisplayMode(displayMode, modelPrice)) {
     if (modelPrice !== -1) {

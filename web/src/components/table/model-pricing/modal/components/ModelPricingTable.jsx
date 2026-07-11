@@ -78,31 +78,33 @@ const ModelPricingTable = ({
     };
   };
 
-  const formatRMB = (value, multiplier = 1) => {
+  const formatSalePrice = (value, multiplier = 1) => {
     if (value === undefined || value === null || value === '') return '-';
     const n = Number(value) * Number(multiplier || 1);
     if (!Number.isFinite(n)) return '-';
-    return `¥${n.toFixed(4).replace(/\.?0+$/, '')}`;
+    return displayPrice(n, 4).replace(/\.?0+$/, '');
   };
 
   const renderVideoSalePrice = (row, ratio) => {
     const parts = [];
     if (row.sale_rmb_per_video) {
-      parts.push(`${formatRMB(row.sale_rmb_per_video, ratio)} / 条`);
+      parts.push(`${formatSalePrice(row.sale_rmb_per_video, ratio)} / 条`);
     }
     if (row.sale_rmb_per_video_min || row.sale_rmb_per_video_max) {
       parts.push(
-        `${formatRMB(row.sale_rmb_per_video_min, ratio)} - ${formatRMB(
+        `${formatSalePrice(row.sale_rmb_per_video_min, ratio)} - ${formatSalePrice(
           row.sale_rmb_per_video_max,
           ratio,
         )} / 条`,
       );
     }
     if (row.sale_rmb_per_second) {
-      parts.push(`${formatRMB(row.sale_rmb_per_second, ratio)} / 秒`);
+      parts.push(`${formatSalePrice(row.sale_rmb_per_second, ratio)} / 秒`);
     }
     if (row.sale_rmb_per_m_tokens) {
-      parts.push(`${formatRMB(row.sale_rmb_per_m_tokens, ratio)} / 1M tokens`);
+      parts.push(
+        `${formatSalePrice(row.sale_rmb_per_m_tokens, ratio)} / 1M tokens`,
+      );
     }
     return parts.length > 0 ? parts.join('；') : '-';
   };

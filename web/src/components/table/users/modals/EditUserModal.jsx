@@ -24,7 +24,7 @@ import {
   showError,
   showSuccess,
   renderQuota,
-  getCurrencyConfig,
+  getQuotaCurrencyConfig,
 } from '../../../../helpers';
 import {
   quotaToDisplayAmount,
@@ -170,7 +170,11 @@ const EditUserModal = (props) => {
   const adjustQuota = async () => {
     const quotaVal = parseInt(adjustQuotaLocal) || 0;
     if (quotaVal <= 0 && adjustMode !== 'override') return;
-    if (adjustMode === 'override' && (adjustQuotaLocal === '' || adjustQuotaLocal == null)) return;
+    if (
+      adjustMode === 'override' &&
+      (adjustQuotaLocal === '' || adjustQuotaLocal == null)
+    )
+      return;
     setAdjustLoading(true);
     try {
       const res = await API.post('/api/user/manage', {
@@ -372,7 +376,7 @@ const EditUserModal = (props) => {
                         <Form.InputNumber
                           field='quota_amount'
                           label={t('金额')}
-                          prefix={getCurrencyConfig().symbol}
+                          prefix={getQuotaCurrencyConfig().symbol}
                           precision={6}
                           step={0.000001}
                           style={{ width: '100%' }}
@@ -401,7 +405,10 @@ const EditUserModal = (props) => {
                             ? `▾ ${t('收起原生额度输入')}`
                             : `▸ ${t('使用原生额度输入')}`}
                         </div>
-                        <div style={{ display: showQuotaInput ? 'block' : 'none' }} className='mt-2'>
+                        <div
+                          style={{ display: showQuotaInput ? 'block' : 'none' }}
+                          className='mt-2'
+                        >
                           <Form.InputNumber
                             field='quota'
                             label={t('额度')}
@@ -509,7 +516,7 @@ const EditUserModal = (props) => {
             <Text size='small'>{t('金额')}</Text>
           </div>
           <InputNumber
-            prefix={getCurrencyConfig().symbol}
+            prefix={getQuotaCurrencyConfig().symbol}
             placeholder={t('输入金额')}
             value={adjustAmountLocal}
             precision={6}
@@ -539,7 +546,10 @@ const EditUserModal = (props) => {
             ? `▾ ${t('收起原生额度输入')}`
             : `▸ ${t('使用原生额度输入')}`}
         </div>
-        <div style={{ display: showAdjustQuotaRaw ? 'block' : 'none' }} className='mt-2'>
+        <div
+          style={{ display: showAdjustQuotaRaw ? 'block' : 'none' }}
+          className='mt-2'
+        >
           <div className='mb-1'>
             <Text size='small'>{t('额度')}</Text>
           </div>

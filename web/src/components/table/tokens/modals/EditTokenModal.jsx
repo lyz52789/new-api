@@ -24,7 +24,7 @@ import {
   showSuccess,
   timestamp2string,
   renderGroupOption,
-  getCurrencyConfig,
+  getQuotaCurrencyConfig,
   getModelCategories,
   selectFilter,
 } from '../../../../helpers';
@@ -524,7 +524,7 @@ const EditTokenModal = (props) => {
                     <Form.InputNumber
                       field='remain_amount'
                       label={t('金额')}
-                      prefix={getCurrencyConfig().symbol}
+                      prefix={getQuotaCurrencyConfig().symbol}
                       placeholder={t('输入金额')}
                       precision={6}
                       disabled={values.unlimited_quota}
@@ -552,7 +552,10 @@ const EditTokenModal = (props) => {
                         ? `▾ ${t('收起原生额度输入')}`
                         : `▸ ${t('使用原生额度输入')}`}
                     </div>
-                    <div style={{ display: showQuotaInput ? 'block' : 'none' }} className='mt-2'>
+                    <div
+                      style={{ display: showQuotaInput ? 'block' : 'none' }}
+                      className='mt-2'
+                    >
                       <Form.InputNumber
                         field='remain_quota'
                         label={t('额度')}

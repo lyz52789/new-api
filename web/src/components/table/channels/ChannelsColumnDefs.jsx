@@ -34,7 +34,7 @@ import {
   renderGroup,
   renderQuota,
   getChannelIcon,
-  renderQuotaWithAmount,
+  convertUSDToCurrency,
   showSuccess,
   showError,
   showInfo,
@@ -542,7 +542,7 @@ export const getChannelsColumns = ({
                       ? t('查看 Codex 帐号信息与用量')
                       : t('剩余额度') +
                         ': ' +
-                        renderQuotaWithAmount(record.balance) +
+                        convertUSDToCurrency(record.balance) +
                         t('，点击更新')
                   }
                 >
@@ -555,7 +555,7 @@ export const getChannelsColumns = ({
                   >
                     {record.type === 57
                       ? t('帐号信息')
-                      : renderQuotaWithAmount(record.balance)}
+                      : convertUSDToCurrency(record.balance)}
                   </Tag>
                 </Tooltip>
               </Space>

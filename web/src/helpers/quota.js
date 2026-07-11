@@ -16,7 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { getCurrencyConfig } from './render';
+import { getQuotaCurrencyConfig } from './render';
+import {
+  displayAmountToQuotaBase,
+  quotaBaseToDisplayAmount,
+} from './quotaCurrency';
 
 export const getQuotaPerUnit = () => {
   const raw = parseFloat(localStorage.getItem('quota_per_unit') || '1');
@@ -28,11 +32,10 @@ export const quotaToDisplayAmount = (quota) => {
   if (!Number.isFinite(q) || q === 0) return 0;
   const sign = Math.sign(q);
   const abs = Math.abs(q);
-  const { type, rate } = getCurrencyConfig();
+  const { type, rate } = getQuotaCurrencyConfig();
   if (type === 'TOKENS') return q;
-  const usd = abs / getQuotaPerUnit();
-  if (type === 'USD') return sign * usd;
-  return sign * usd * (rate || 1);
+  const baseAmount = abs / getQuotaPerUnit();
+  return sign * quotaBaseToDisplayAmount(baseAmount, { rate });
 };
 
 export const displayAmountToQuota = (amount) => {
@@ -40,8 +43,8 @@ export const displayAmountToQuota = (amount) => {
   if (!Number.isFinite(val) || val === 0) return 0;
   const sign = Math.sign(val);
   const abs = Math.abs(val);
-  const { type, rate } = getCurrencyConfig();
+  const { type, rate } = getQuotaCurrencyConfig();
   if (type === 'TOKENS') return Math.round(val);
-  const usd = type === 'USD' ? abs : abs / (rate || 1);
-  return sign * Math.round(usd * getQuotaPerUnit());
+  const baseAmount = displayAmountToQuotaBase(abs, { rate });
+  return sign * Math.round(baseAmount * getQuotaPerUnit());
 };

@@ -25,7 +25,7 @@ import {
   showError,
   showSuccess,
   renderQuota,
-  getCurrencyConfig,
+  getQuotaCurrencyConfig,
 } from '../../../../helpers';
 import {
   quotaToDisplayAmount,
@@ -302,7 +302,7 @@ const EditRedemptionModal = (props) => {
                       <Form.InputNumber
                         field='amount'
                         label={t('金额')}
-                        prefix={getCurrencyConfig().symbol}
+                        prefix={getQuotaCurrencyConfig().symbol}
                         placeholder={t('输入金额')}
                         precision={6}
                         min={0}
@@ -327,7 +327,10 @@ const EditRedemptionModal = (props) => {
                           ? `▾ ${t('收起原生额度输入')}`
                           : `▸ ${t('使用原生额度输入')}`}
                       </div>
-                      <div style={{ display: showQuotaInput ? 'block' : 'none' }} className='mt-2'>
+                      <div
+                        style={{ display: showQuotaInput ? 'block' : 'none' }}
+                        className='mt-2'
+                      >
                         <Form.InputNumber
                           field='quota'
                           label={t('额度')}

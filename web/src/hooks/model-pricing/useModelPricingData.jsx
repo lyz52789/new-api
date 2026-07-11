@@ -24,6 +24,7 @@ import { Modal } from '@douyinfe/semi-ui';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
 import { shouldUseRechargePrice } from './pricingDisplay';
+import { resolveQuotaCurrencyConfig } from '../../helpers/quotaCurrency';
 
 export const useModelPricingData = () => {
   const { t } = useTranslation();
@@ -181,18 +182,15 @@ export const useModelPricingData = () => {
     [selectedRowKeys],
   );
 
-  const displayPrice = (usdPrice) => {
-    let priceInUSD = usdPrice;
-    if (shouldUseRechargePrice(siteDisplayType)) {
-      priceInUSD = (usdPrice * priceRate) / usdExchangeRate;
-    }
-
-    if (currency === 'CNY') {
-      return `¥${(priceInUSD * usdExchangeRate).toFixed(3)}`;
-    } else if (currency === 'CUSTOM') {
-      return `${customCurrencySymbol}${(priceInUSD * customExchangeRate).toFixed(3)}`;
-    }
-    return `$${priceInUSD.toFixed(3)}`;
+  const displayPrice = (usdPrice, precision = 3) => {
+    const { symbol, rate } = resolveQuotaCurrencyConfig({
+      type: currency,
+      priceRate,
+      usdExchangeRate,
+      customExchangeRate,
+      customCurrencySymbol,
+    });
+    return `${symbol}${(usdPrice * rate).toFixed(precision)}`;
   };
 
   const setModelsFormat = (models, groupRatio, vendorMap) => {

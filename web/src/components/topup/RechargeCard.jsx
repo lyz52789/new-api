@@ -46,7 +46,10 @@ import {
 } from 'lucide-react';
 import { IconGift } from '@douyinfe/semi-icons';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
-import { getCurrencyConfig } from '../../helpers/render';
+import {
+  getCurrencyConfig,
+  getQuotaCurrencyConfig,
+} from '../../helpers/render';
 import SubscriptionPlansCard from './SubscriptionPlansCard';
 
 const { Text } = Typography;
@@ -101,6 +104,7 @@ const RechargeCard = ({
   const initialTabSetRef = useRef(false);
   const showAmountSkeleton = useMinimumLoadingTime(amountLoading);
   const [activeTab, setActiveTab] = useState('topup');
+  const quotaCurrency = getQuotaCurrencyConfig();
   const shouldShowSubscription =
     !subscriptionLoading && subscriptionPlans.length > 0;
   const regularPayMethods = payMethods || [];
@@ -258,7 +262,7 @@ const RechargeCard = ({
                       min={minTopUp}
                       max={999999999}
                       step={1}
-                      precision={0}
+                      precision={6}
                       onChange={async (value) => {
                         if (value && value >= 1) {
                           setTopUpCount(value);
@@ -267,16 +271,26 @@ const RechargeCard = ({
                         }
                       }}
                       onBlur={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!value || value < 1) {
-                          setTopUpCount(1);
-                          getAmount(1);
+                        if (!topUpCount || topUpCount < minTopUp) {
+                          setTopUpCount(minTopUp);
+                          getAmount(minTopUp);
                         }
                       }}
-                      formatter={(value) => (value ? `${value}` : '')}
-                      parser={(value) =>
-                        value ? parseInt(value.replace(/[^\d]/g, '')) : 0
+                      formatter={(value) =>
+                        value
+                          ? `${Number(
+                              (Number(value) * quotaCurrency.rate).toFixed(6),
+                            )}`
+                          : ''
                       }
+                      parser={(value) => {
+                        if (!value) return 0;
+                        const displayValue = Number(
+                          String(value).replace(/[^\d.]/g, ''),
+                        );
+                        if (!Number.isFinite(displayValue)) return 0;
+                        return Math.round(displayValue / quotaCurrency.rate);
+                      }}
                       extraText={
                         <Skeleton
                           loading={showAmountSkeleton}
@@ -445,20 +459,16 @@ const RechargeCard = ({
                         }
                       } catch (e) {}
 
-                      let displayValue = preset.value; // 显示的数量
+                      let displayValue = preset.value * quotaCurrency.rate;
                       let displayActualPay = actualPay;
                       let displaySave = save;
 
                       if (type === 'USD') {
-                        // 数量保持USD，价格从CNY转USD
+                        // 支付价格从人民币转换为美元
                         displayActualPay = actualPay / usdRate;
                         displaySave = save / usdRate;
-                      } else if (type === 'CNY') {
-                        // 数量转CNY，价格已是CNY
-                        displayValue = preset.value * usdRate;
                       } else if (type === 'CUSTOM') {
-                        // 数量和价格都转自定义货币
-                        displayValue = preset.value * rate;
+                        // 支付价格经美元转换为自定义货币
                         displayActualPay = (actualPay / usdRate) * rate;
                         displaySave = (save / usdRate) * rate;
                       }
