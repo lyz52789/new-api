@@ -23,6 +23,7 @@ import { API, copy, showError, showInfo, showSuccess } from '../../helpers';
 import { Modal } from '@douyinfe/semi-ui';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
+import { shouldUseRechargePrice } from './pricingDisplay';
 
 export const useModelPricingData = () => {
   const { t } = useTranslation();
@@ -42,7 +43,9 @@ export const useModelPricingData = () => {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [currency, setCurrency] = useState('USD');
-  const [showWithRecharge, setShowWithRecharge] = useState(false);
+  const [showWithRecharge, setShowWithRecharge] = useState(() =>
+    shouldUseRechargePrice(),
+  );
   const [tokenUnit, setTokenUnit] = useState('M');
   const [models, setModels] = useState([]);
   const [vendorsMap, setVendorsMap] = useState({});
@@ -89,8 +92,8 @@ export const useModelPricingData = () => {
   }, [siteDisplayType]);
 
   useEffect(() => {
+    setShowWithRecharge(shouldUseRechargePrice(siteDisplayType));
     if (siteDisplayType === 'TOKENS') {
-      setShowWithRecharge(false);
       setCurrency('USD');
     }
   }, [siteDisplayType]);
@@ -180,7 +183,7 @@ export const useModelPricingData = () => {
 
   const displayPrice = (usdPrice) => {
     let priceInUSD = usdPrice;
-    if (showWithRecharge) {
+    if (shouldUseRechargePrice(siteDisplayType)) {
       priceInUSD = (usdPrice * priceRate) / usdExchangeRate;
     }
 
