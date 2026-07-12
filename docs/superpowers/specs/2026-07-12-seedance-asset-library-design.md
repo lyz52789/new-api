@@ -12,7 +12,7 @@ BytePlus 素材库不接收 multipart 文件。`CreateAsset` 接收一个公网�
 2. 图片与视频均可登记，分别使用 `AssetType: "Image"` 和 `AssetType: "Video"`。
 3. 每个 new-api 用户拥有独立的 BytePlus `AIGC` 素材组；客户端不能指定或越过该分组。
 4. `CreateAsset` 返回素材 ID；客户端轮询 `GetAsset` 至 `Status == "Active"`，随后在 Seedance 视频请求中使用 `asset://<id>`。
-5. BytePlus AK/SK 只保存在系统设置中，不返回给普通用户或管理端浏览器。
+5. BytePlus Secret Key 只保存在系统设置中，不返回给普通用户或管理端浏览器；Access Key 可在管理页显示和更新。
 6. 数据库迁移同时兼容 SQLite、MySQL 5.7.8+ 和 PostgreSQL 9.6+。
 
 ## 非目标
@@ -115,7 +115,7 @@ volc_asset_user_groups
 
 - 素材接口只接受 Token 鉴权，用户 ID 取自鉴权上下文，不接受客户端声明。
 - 任何素材详情、修改或删除前都做归属校验。
-- AK/SK 不写日志；响应错误不包含签名头或凭证。
+- AK/SK 不写日志；Secret Key 不返回浏览器；响应错误不包含签名头或凭证。
 - 上游响应最大 10 MiB，避免无界读取。
 - URL 校验只允许公网可表达的 HTTP(S) 形式；真正的网络可达性和素材格式由 BytePlus 异步处理结果决定。
 
