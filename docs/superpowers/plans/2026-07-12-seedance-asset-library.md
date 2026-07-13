@@ -4,11 +4,15 @@
 
 **Goal:** Add a token-authenticated, per-user-isolated BytePlus Seedance asset library gateway for image and video references.
 
-**Architecture:** A focused Volcengine Asset client signs upstream Action requests with the configured AK/SK. A service layer auto-provisions one AIGC group per new-api user and forces every asset operation into that group; thin Gin handlers expose the five user-facing actions. The existing Seedance converter continues to forward `asset://<id>` references unchanged.
+**Architecture:** A focused Volcengine Asset client signs upstream Action requests with the configured AK/SK. A service layer starts BytePlus H5 real-person authorization, binds the returned LivenessFace group to the authenticated new-api user, and forces every asset operation into that verified group; thin Gin handlers expose two authorization and five asset actions. The existing Seedance converter continues to forward `asset://<id>` references unchanged.
 
 **Tech Stack:** Go 1.22+, Gin, GORM v2, SQLite/MySQL/PostgreSQL, React 18, Semi Design, i18next, Bun.
 
 ---
+
+## Scope correction from authoritative provider evidence
+
+During implementation, current BytePlus documentation confirmed that Seedance 2.0 rejects ordinary URL uploads containing real human faces. The original AIGC auto-provisioning design therefore cannot satisfy the stated real-person objective. Tasks below are executed with this corrected invariant: `CreateVisualValidateSession -> GetVisualValidateResult -> LivenessFace GroupId -> CreateAsset -> Active -> asset://id`. AIGC group auto-creation is excluded.
 
 ### Task 1: Safe Volcengine asset configuration
 
@@ -21,7 +25,7 @@
 
 - [ ] **Step 1: Write failing configuration tests**
 
-Test that defaults are `ap-southeast-1`, `AIGC`, and the BytePlus Ark host; test that an empty incoming `secret_key` preserves the existing value; test that `GetOptions` returns `secret_key_configured: true` without returning the secret.
+Test that defaults are `ap-southeast-1`, `LivenessFace`, and the BytePlus Ark host; test that an empty incoming `secret_key` preserves the existing value; test that `GetOptions` returns `secret_key_configured: true` without returning the secret.
 
 ```go
 func TestMergeVolcAssetSettingsPreservesSecret(t *testing.T) {
@@ -84,7 +88,7 @@ git commit -m "feat: add safe Seedance asset settings"
 
 - [ ] **Step 1: Write failing repository tests**
 
-Use in-memory SQLite and verify missing bindings return `gorm.ErrRecordNotFound`, save/read round trips work, and a second save for the same user returns the existing row rather than creating a duplicate.
+Use in-memory SQLite and verify missing bindings return `gorm.ErrRecordNotFound`, save/read round trips work, and a second successful authorization updates the same user's binding without creating a duplicate row.
 
 ```go
 func TestSaveAndGetVolcAssetUserGroup(t *testing.T) {
@@ -104,7 +108,7 @@ Expected: FAIL because the model and repository functions do not exist.
 
 - [ ] **Step 3: Implement the model and migrations**
 
-Create a GORM model with `UserId` as a unique index and `GroupId` as `type:text`. Implement `GetVolcAssetUserGroup` with `Where(...).First` and `SaveVolcAssetUserGroup` with `FirstOrCreate` plus a re-read after a unique constraint race. Add the model to both normal and fast `AutoMigrate` lists in `model/main.go`.
+Create a GORM model with `UserId` as a unique index and `GroupId` as `type:text`. Implement `GetVolcAssetUserGroup` with `Where(...).First` and `SaveVolcAssetUserGroup` with a create-or-update flow plus a re-read after a unique constraint race. Add the model to both normal and fast `AutoMigrate` lists in `model/main.go`.
 
 - [ ] **Step 4: Run focused repository tests**
 
@@ -200,7 +204,7 @@ Expected: FAIL because the service does not exist.
 
 - [ ] **Step 3: Implement service DTOs and invariants**
 
-Define request/response DTOs for the five actions and internal `CreateAssetGroup` call. `ensureUserGroup` creates and stores the group on `gorm.ErrRecordNotFound`. For ownership checks call `GetAsset` and compare `GroupId`. Accept only absolute HTTP(S) URLs and `Image`/`Video` asset types.
+Define request/response DTOs for the two real-person authorization actions and five asset actions. `GetVisualValidateResult` stores the verified `GroupId`; asset calls without a verified binding return `ErrAssetGroupNotAuthorized`. For ownership checks call `GetAsset` and compare `GroupId`. Accept only absolute HTTP(S) URLs and `Image`/`Video` asset types.
 
 - [ ] **Step 4: Run focused service tests**
 
@@ -235,9 +239,11 @@ Expected: FAIL because the handler does not exist.
 
 - [ ] **Step 3: Implement handlers, controller wrappers, and routes**
 
-Expose only the five user actions under a `/doubao` group protected by `middleware.TokenAuth()`:
+Expose the two authorization actions and five user asset actions under a `/doubao` group protected by `middleware.TokenAuth()`:
 
 ```go
+doubaoGroup.POST("/open/CreateVisualValidateSession", controller.RelayCreateVisualValidateSession)
+doubaoGroup.POST("/open/GetVisualValidateResult", controller.RelayGetVisualValidateResult)
 doubaoGroup.POST("/open/ListAssets", controller.RelayListAssets)
 doubaoGroup.POST("/open/GetAsset", controller.RelayGetAsset)
 doubaoGroup.POST("/open/CreateAsset", controller.RelayCreateAsset)
@@ -278,7 +284,7 @@ Expected: PASS on the existing converter after the assertion has been proven sen
 
 - [ ] **Step 3: Add end-to-end API documentation**
 
-Document: upload local file to existing CDN; call `CreateAsset`; poll `GetAsset` until `Active`; submit `/v1/video/generations` using `asset://<id>` as `image_url.url` or `video_url.url`; never use a Pending asset.
+Document: create H5 authorization session; bind `GroupId` after verification; upload local file to existing CDN; call `CreateAsset`; poll `GetAsset` until `Active`; submit `/v1/video/generations` using `asset://<id>` as `image_url.url` or `video_url.url`; never use a Pending asset.
 
 - [ ] **Step 4: Commit tests and docs**
 
@@ -311,7 +317,7 @@ Expected: FAIL because the component is absent.
 
 - [ ] **Step 3: Implement the settings tab**
 
-Create a Semi Design form for Access Key, write-only Secret Key, Region (`ap-southeast-1` default), Project Name, and Group Type (`AIGC`). Add a dedicated `Seedance 素材库` tab to the existing settings page and save through `PUT /api/option/` with key `VolcAssetConfig`.
+Create a Semi Design form for Access Key, write-only Secret Key, Region (`ap-southeast-1` default), Project Name, and Group Type (`LivenessFace`). Add a dedicated `Seedance 素材库` tab to the existing settings page and save through `PUT /api/option/` with key `VolcAssetConfig`.
 
 - [ ] **Step 4: Synchronize and lint translations**
 
@@ -364,4 +370,3 @@ Expected: exit 0.
 - [ ] **Step 5: Audit the objective against evidence**
 
 Confirm each requirement has direct evidence: URL registration, image/video types, Active polling contract, `asset://` generation passthrough, token auth, per-user isolation, secret redaction, cross-DB migration, tests, and docs.
-
